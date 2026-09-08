@@ -1,0 +1,27 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/Car.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/CarVisual.gd" id="2"]
+
+[sub_resource type="RectangleShape2D" id="RectShape1"]
+size = Vector2(36, 64)
+
+[node name="Car" type="CharacterBody2D"]
+script = ExtResource("1")
+position = Vector2(240, 600)
+collision_layer = 1
+collision_mask = 1
+
+[node name="Visual" type="Node2D" parent="."]
+script = ExtResource("2")
+body_color = Color(0.2, 0.6, 1, 1)
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectShape1")
+
+[node name="Area2D" type="Area2D" parent="."]
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="Area2D"]
+shape = SubResource("RectShape1")
+
+[connection signal="area_entered" from="Area2D" to="." method="_on_area_entered"]

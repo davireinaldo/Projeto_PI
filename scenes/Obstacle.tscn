@@ -1,0 +1,18 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Script" path="res://scripts/Obstacle.gd" id="1"]
+[ext_resource type="Script" path="res://scripts/CarVisual.gd" id="2"]
+
+[sub_resource type="RectangleShape2D" id="RectShape1"]
+size = Vector2(36, 64)
+
+[node name="Obstacle" type="Area2D"]
+script = ExtResource("1")
+collision_layer = 1
+collision_mask = 1
+
+[node name="Visual" type="Node2D" parent="."]
+script = ExtResource("2")
+
+[node name="CollisionShape2D" type="CollisionShape2D" parent="."]
+shape = SubResource("RectShape1")
