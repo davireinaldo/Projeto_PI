@@ -7,6 +7,7 @@ extends Node
 const PATH := "user://zero_impact_save.json"
 const OLD_HIGHSCORE_PATH := "user://highscore.save"
 const TOP_SIZE := 10
+const UI := preload("res://scripts/UIKit.gd")
 
 var data: Dictionary = {}
 var just_reset := false  # o Menu mostra o aviso "PROGRESSO RESETADO"
@@ -15,16 +16,76 @@ func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS  # Ctrl+P funciona até com o jogo pausado
 	load_data()
 
-# Ctrl+P: apaga todo o progresso (mantém só as opções de som) e volta ao menu.
+# ---------- Ctrl+P: resetar progresso (com confirmação) ----------
+# Apaga todo o progresso (mantém só as opções de som) e volta ao menu.
+# Na janela de confirmação: S confirma, N cancela (ou clique nos botões).
+
+var confirming := false
+var _confirm_layer: CanvasLayer
+var _was_paused := false
+var _prev_focus: Control
+
 func _input(event: InputEvent) -> void:
-	if event is InputEventKey and event.pressed and not event.echo \
-			and event.ctrl_pressed and event.physical_keycode == KEY_P:
+	if not (event is InputEventKey and event.pressed and not event.echo):
+		return
+	if confirming:
+		if event.physical_keycode == KEY_S:
+			get_viewport().set_input_as_handled()
+			_confirm_reset()
+		elif event.physical_keycode == KEY_N:
+			get_viewport().set_input_as_handled()
+			_close_confirm()
+		return
+	if event.ctrl_pressed and event.physical_keycode == KEY_P:
 		get_viewport().set_input_as_handled()
-		reset()
-		get_tree().paused = false
-		GameManager.stop_run()
-		AudioManager.quiet_ui()
-		get_tree().change_scene_to_file("res://scenes/Menu.tscn")
+		_open_confirm()
+
+func _open_confirm() -> void:
+	confirming = true
+	_was_paused = get_tree().paused
+	_prev_focus = get_viewport().gui_get_focus_owner()
+	get_tree().paused = true
+	AudioManager.play("ui_error", 0.0, 0.0)
+
+	_confirm_layer = CanvasLayer.new()
+	_confirm_layer.layer = 100
+	add_child(_confirm_layer)
+	var root := Control.new()
+	root.theme = UI.theme()
+	root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_confirm_layer.add_child(root)
+	var dim := ColorRect.new()
+	dim.color = Color(0, 0, 0, 0.7)
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	root.add_child(dim)
+	UI.panel(root, Rect2(50, 230, 380, 260), Color(0.05, 0.06, 0.1, 0.97), UI.HOT)
+	UI.label(root, "RESETAR PROGRESSO?", Vector2(50, 250), 28, UI.HOT, 380, HORIZONTAL_ALIGNMENT_CENTER)
+	UI.label(root, "Apaga moedas, carros, km, estatísticas\ne todos os rankings. Não dá para desfazer.",
+		Vector2(50, 302), 15, Color(0.85, 0.88, 0.95), 380, HORIZONTAL_ALIGNMENT_CENTER)
+	var no := UI.button(root, "CANCELAR (N)", Rect2(74, 400, 160, 52), _close_confirm, 16)
+	var yes := UI.button(root, "RESETAR (S)", Rect2(246, 400, 160, 52), _confirm_reset, 16)
+	yes.add_theme_stylebox_override("normal", UI.style(Color(0.35, 0.05, 0.12, 0.9), UI.HOT, 10, 2))
+	no.focus_neighbor_right = no.get_path_to(yes)
+	yes.focus_neighbor_left = yes.get_path_to(no)
+	no.grab_focus()
+
+func _close_confirm() -> void:
+	if not confirming:
+		return
+	confirming = false
+	_confirm_layer.queue_free()
+	_confirm_layer = null
+	get_tree().paused = _was_paused
+	if is_instance_valid(_prev_focus) and _prev_focus.is_inside_tree():
+		_prev_focus.grab_focus()
+
+func _confirm_reset() -> void:
+	_close_confirm()
+	reset()
+	get_tree().paused = false
+	GameManager.stop_run()
+	AudioManager.quiet_ui()
+	get_tree().change_scene_to_file("res://scenes/Menu.tscn")
 
 func reset() -> void:
 	var music: bool = data.get("music_on", true)
@@ -48,6 +109,8 @@ func _defaults() -> Dictionary:
 		"car_km": {},
 		"top": [],
 		"turn_players": [], # últimos nomes usados no modo por turnos
+		"turn_cars": {}, # carro que cada jogador escolheu nos turnos
+		"coop_top": [], # top 10 do modo por turnos, por distância
 		"music_on": true,
 		"sfx_on": true
 	}
@@ -127,3 +190,22 @@ func register_run(car_id: String, km: float, score: int, coins_gained: int, play
 
 	var pos := top.find(entry) + 1
 	return pos
+
+# Top 10 do modo por turnos: quem foi mais longe (desempate pelos pontos).
+func register_coop(player_name: String, car_id: String, km: float, score: int) -> void:
+	var top: Array = data["coop_top"]
+	top.append({
+		"name": player_name,
+		"km": snappedf(km, 0.01),
+		"score": score,
+		"car": car_id,
+		"date": Time.get_date_string_from_system()
+	})
+	top.sort_custom(func(a, b):
+		if is_equal_approx(float(a["km"]), float(b["km"])):
+			return int(a["score"]) > int(b["score"])
+		return float(a["km"]) > float(b["km"]))
+	while top.size() > TOP_SIZE:
+		top.pop_back()
+	data["coop_top"] = top
+	save()

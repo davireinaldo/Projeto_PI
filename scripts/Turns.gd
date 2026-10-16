@@ -19,6 +19,8 @@ var list_box: Control
 var count_label: Label
 var msg_label: Label
 var start_btn: Button
+var car_label: Label
+var car_desc: Label
 
 func _ready() -> void:
 	get_tree().paused = false
@@ -170,8 +172,12 @@ func _build_next() -> void:
 	who.pivot_offset = Vector2(240, 24)
 	who.scale = Vector2(1.4, 1.4)
 	create_tween().tween_property(who, "scale", Vector2.ONE, 0.4).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	UI.label(root, "Carro: %s" % GameManager.selected_car()["name"], Vector2(0, 196), 14,
-		Color(1, 1, 1, 0.7), 480, HORIZONTAL_ALIGNMENT_CENTER)
+	# cada jogador escolhe o próprio carro (entre os comprados na garagem)
+	var prev_car := UI.button(root, "<", Rect2(40, 188, 44, 40), _cycle_car.bind(-1), 20)
+	var next_car := UI.button(root, ">", Rect2(396, 188, 44, 40), _cycle_car.bind(1), 20)
+	car_label = UI.label(root, "", Vector2(84, 186), 18, Color.WHITE, 312, HORIZONTAL_ALIGNMENT_CENTER)
+	car_desc = UI.label(root, "", Vector2(0, 211), 11, Color(0.7, 0.75, 0.85), 480, HORIZONTAL_ALIGNMENT_CENTER)
+	_refresh_car()
 
 	UI.panel(root, Rect2(24, 236, 432, 388))
 	UI.label(root, "PLACAR ATÉ AGORA", Vector2(0, 248), 18, UI.GOLD, 480, HORIZONTAL_ALIGNMENT_CENTER)
@@ -186,7 +192,30 @@ func _build_next() -> void:
 	go.add_theme_stylebox_override("normal", UI.style(Color(0.05, 0.3, 0.32, 0.9), UI.ACCENT, 10, 2))
 	quit.focus_neighbor_right = quit.get_path_to(go)
 	go.focus_neighbor_left = go.get_path_to(quit)
+	quit.focus_neighbor_top = quit.get_path_to(prev_car)
+	go.focus_neighbor_top = go.get_path_to(next_car)
+	prev_car.focus_neighbor_right = prev_car.get_path_to(next_car)
+	next_car.focus_neighbor_left = next_car.get_path_to(prev_car)
+	prev_car.focus_neighbor_bottom = prev_car.get_path_to(quit)
+	next_car.focus_neighbor_bottom = next_car.get_path_to(go)
 	go.grab_focus()
+
+func _cycle_car(dir: int) -> void:
+	var owned: Array = GameManager.cars.filter(func(c): return SaveManager.is_owned(c["id"]))
+	var who := GameManager.current_player()
+	var cur := GameManager.turn_car_id(who)
+	var i := 0
+	for k in range(owned.size()):
+		if owned[k]["id"] == cur:
+			i = k
+	i = (i + dir + owned.size()) % owned.size()
+	GameManager.set_turn_car(who, owned[i]["id"])
+	_refresh_car()
+
+func _refresh_car() -> void:
+	var car := GameManager.selected_car()
+	car_label.text = "Carro: %s" % car["name"]
+	car_desc.text = String(car["desc"]).replace("\n", " ")
 
 # ---------- results: classificação final ----------
 

@@ -34,7 +34,7 @@ var cars: Array = [
 	 "lane_speed": 19.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.0, "score_mult": 1.5, "magnet": 0.0},
 	{"id": "zero", "name": "ZERO", "model": "legend", "color": Color(0.07, 0.09, 0.14), "accent": Color(0.1, 1.0, 0.9),
 	 "price": 7000, "desc": "O lendário. Escudo, vida extra,\nímã e moedas em dobro.",
-	 "lane_speed": 16.0, "start_shield": 4.0, "lives": 1, "coin_mult": 99999.0, "score_mult": 1.5, "magnet": 150.0},
+	 "lane_speed": 16.0, "start_shield": 4.0, "lives": 1, "coin_mult": 2.0, "score_mult": 1.5, "magnet": 150.0},
 ]
 
 # ---------- Cenários ----------
@@ -164,8 +164,23 @@ func car_index(car_id: String) -> int:
 			return i
 	return 0
 
+# No modo por turnos cada jogador usa o carro que escolheu na sua vez.
 func selected_car() -> Dictionary:
+	if turn_mode and current_player() != "":
+		return car_by_id(turn_car_id(current_player()))
 	return car_by_id(String(SaveManager.data["selected"]))
+
+# Carro do jogador nos turnos: o último que ele usou (se ainda tiver),
+# senão o carro selecionado na garagem.
+func turn_car_id(player_name: String) -> String:
+	var id := String(SaveManager.data["turn_cars"].get(player_name, ""))
+	if id == "" or not SaveManager.is_owned(id):
+		id = String(SaveManager.data["selected"])
+	return id
+
+func set_turn_car(player_name: String, car_id: String) -> void:
+	SaveManager.data["turn_cars"][player_name] = car_id
+	SaveManager.save()
 
 # ---------- cenários ----------
 
@@ -298,6 +313,7 @@ func _finish_run() -> void:
 	var new_km := SaveManager.total_km()
 	if turn_mode:
 		turn_results.append({"name": player_name, "km": km, "score": final_score, "car": car["id"]})
+		SaveManager.register_coop(player_name, car["id"], km, final_score)
 		turn_index += 1
 	last_summary = {
 		"km": km,

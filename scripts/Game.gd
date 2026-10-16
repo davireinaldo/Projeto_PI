@@ -72,7 +72,7 @@ func _process(delta: float) -> void:
 	dist_label.text = "%.2f km" % ((GameManager.distance_m - GameManager.debug_start_m) / 1000.0)
 	score_label.text = "PONTOS  %d" % int(GameManager.score)
 	coin_label.text = str(GameManager.coins_run)
-	if Input.is_action_just_pressed("ui_cancel") and not GameManager.game_over:
+	if Input.is_action_just_pressed("ui_cancel") and not GameManager.game_over and not SaveManager.confirming:
 		_toggle_pause()
 
 func shake(amount: float) -> void:
@@ -267,9 +267,15 @@ func _toggle_pause() -> void:
 	UI.panel(pause_layer, Rect2(90, 220, 300, 280), Color(0.05, 0.06, 0.1, 0.95), UI.ACCENT)
 	UI.label(pause_layer, "PAUSADO", Vector2(90, 236), 36, Color.WHITE, 300, HORIZONTAL_ALIGNMENT_CENTER)
 	var b1 := UI.button(pause_layer, "CONTINUAR", Rect2(130, 300, 220, 48), _resume)
-	var b2 := UI.button(pause_layer, "RECOMEÇAR", Rect2(130, 358, 220, 48), func(): UI.go(get_tree(), "res://scenes/Game.tscn"))
-	var b3 := UI.button(pause_layer, "MENU", Rect2(130, 416, 220, 48), func(): UI.go(get_tree(), "res://scenes/Menu.tscn"))
-	UI.chain_vertical([b1, b2, b3])
+	if GameManager.turn_mode:
+		# nos turnos não dá para recomeçar: cada um tem uma chance só
+		UI.label(pause_layer, "Vez de " + GameManager.current_player(), Vector2(90, 368), 16, UI.ACCENT, 300, HORIZONTAL_ALIGNMENT_CENTER)
+		var quit := UI.button(pause_layer, "DESISTIR DA PARTIDA", Rect2(130, 416, 220, 48), func(): UI.go(get_tree(), "res://scenes/Menu.tscn"), 17)
+		UI.chain_vertical([b1, quit])
+	else:
+		var b2 := UI.button(pause_layer, "RECOMEÇAR", Rect2(130, 358, 220, 48), func(): UI.go(get_tree(), "res://scenes/Game.tscn"))
+		var b3 := UI.button(pause_layer, "MENU", Rect2(130, 416, 220, 48), func(): UI.go(get_tree(), "res://scenes/Menu.tscn"))
+		UI.chain_vertical([b1, b2, b3])
 	b1.grab_focus()
 
 func _resume() -> void:
