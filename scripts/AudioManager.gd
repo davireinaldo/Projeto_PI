@@ -1,0 +1,183 @@
+extends Node
+
+# Som do ZERO-IMPACT (autoload): música com troca suave entre faixas,
+# efeitos sonoros, ronco do motor que acompanha a velocidade e as
+# opções de ligar/desligar música e efeitos (salvas no SaveManager).
+# Os .wav são gerados por tools/gerar_sons.py.
+
+const MUSIC := {
+	"menu": preload("res://assets/audio/music/menu.wav"),
+	"race": preload("res://assets/audio/music/race.wav"),
+	"gameover": preload("res://assets/audio/music/gameover.wav"),
+}
+const LOOPING := ["menu", "race"]
+const SFX := {
+	"coin": preload("res://assets/audio/sfx/coin.wav"),
+	"power_shield": preload("res://assets/audio/sfx/power_shield.wav"),
+	"power_slow": preload("res://assets/audio/sfx/power_slow.wav"),
+	"power_points": preload("res://assets/audio/sfx/power_points.wav"),
+	"crash": preload("res://assets/audio/sfx/crash.wav"),
+	"shield_block": preload("res://assets/audio/sfx/shield_block.wav"),
+	"life_lost": preload("res://assets/audio/sfx/life_lost.wav"),
+	"shield_end": preload("res://assets/audio/sfx/shield_end.wav"),
+	"whoosh": preload("res://assets/audio/sfx/whoosh.wav"),
+	"biome": preload("res://assets/audio/sfx/biome.wav"),
+	"ui_move": preload("res://assets/audio/sfx/ui_move.wav"),
+	"ui_click": preload("res://assets/audio/sfx/ui_click.wav"),
+	"ui_buy": preload("res://assets/audio/sfx/ui_buy.wav"),
+	"ui_error": preload("res://assets/audio/sfx/ui_error.wav"),
+	"horn": preload("res://assets/audio/sfx/horn.wav"),
+}
+const ENGINE := preload("res://assets/audio/sfx/engine.wav")
+
+const MUSIC_DB := -8.0
+const POOL_SIZE := 12
+
+var _music_a: AudioStreamPlayer
+var _music_b: AudioStreamPlayer
+var _current_music: String = ""
+var _pool: Array = []
+var _next: int = 0
+var _engine: AudioStreamPlayer
+var _engine_on: bool = false
+var _ui_quiet_until: float = 0.0
+var _duck: float = 0.0 # abaixa a música na pausa
+
+func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	_make_bus("Music")
+	_make_bus("SFX")
+
+	for key in LOOPING:
+		_set_loop(MUSIC[key])
+	_set_loop(ENGINE)
+
+	_music_a = _player("Music")
+	_music_b = _player("Music")
+	for i in range(POOL_SIZE):
+		_pool.append(_player("SFX"))
+	_engine = _player("SFX")
+	_engine.stream = ENGINE
+	_engine.volume_db = -80.0
+
+	apply_settings()
+
+func _make_bus(bus_name: String) -> void:
+	if AudioServer.get_bus_index(bus_name) != -1:
+		return
+	AudioServer.add_bus()
+	var i := AudioServer.bus_count - 1
+	AudioServer.set_bus_name(i, bus_name)
+	AudioServer.set_bus_send(i, "Master")
+
+func _player(bus: String) -> AudioStreamPlayer:
+	var p := AudioStreamPlayer.new()
+	p.bus = bus
+	add_child(p)
+	return p
+
+func _set_loop(s: AudioStreamWAV) -> void:
+	s.loop_mode = AudioStreamWAV.LOOP_FORWARD
+	s.loop_begin = 0
+	s.loop_end = int(s.get_length() * s.mix_rate)
+
+# ---------- opções ----------
+
+func music_on() -> bool:
+	return bool(SaveManager.data.get("music_on", true))
+
+func sfx_on() -> bool:
+	return bool(SaveManager.data.get("sfx_on", true))
+
+func toggle_music() -> void:
+	SaveManager.data["music_on"] = not music_on()
+	SaveManager.save()
+	apply_settings()
+
+func toggle_sfx() -> void:
+	SaveManager.data["sfx_on"] = not sfx_on()
+	SaveManager.save()
+	apply_settings()
+
+func apply_settings() -> void:
+	AudioServer.set_bus_mute(AudioServer.get_bus_index("Music"), not music_on())
+	AudioServer.set_bus_mute(AudioServer.get_bus_index("SFX"), not sfx_on())
+
+# ---------- música ----------
+
+func play_music(key: String, fade: float = 0.8) -> void:
+	if key == _current_music and _music_a.playing:
+		return
+	_current_music = key
+	# troca A <-> B com fade cruzado
+	var old := _music_a
+	_music_a = _music_b
+	_music_b = old
+	_music_a.stream = MUSIC[key]
+	_music_a.pitch_scale = 1.0
+	_music_a.volume_db = -40.0
+	_music_a.play()
+	var tw := create_tween().set_parallel()
+	tw.tween_property(_music_a, "volume_db", MUSIC_DB, fade)
+	if _music_b.playing:
+		tw.tween_property(_music_b, "volume_db", -60.0, fade)
+		tw.chain().tween_callback(_music_b.stop)
+
+func stop_music(fade: float = 0.5) -> void:
+	_current_music = ""
+	var p := _music_a
+	var tw := create_tween()
+	tw.tween_property(p, "volume_db", -60.0, fade)
+	tw.tween_callback(p.stop)
+
+# ---------- efeitos ----------
+
+func play(key: String, volume_db: float = 0.0, pitch_var: float = 0.05) -> void:
+	if key.begins_with("ui_") and Time.get_ticks_msec() / 1000.0 < _ui_quiet_until:
+		return
+	var p: AudioStreamPlayer = _pool[_next]
+	_next = (_next + 1) % _pool.size()
+	p.stream = SFX[key]
+	p.volume_db = volume_db
+	p.pitch_scale = 1.0 + randf_range(-pitch_var, pitch_var)
+	p.play()
+
+# evita o "tique" de foco que acontece sozinho ao abrir uma tela
+func quiet_ui(seconds: float = 0.25) -> void:
+	_ui_quiet_until = Time.get_ticks_msec() / 1000.0 + seconds
+
+# ---------- motor ----------
+
+func engine_start() -> void:
+	_engine_on = true
+	if not _engine.playing:
+		_engine.play()
+
+func engine_stop() -> void:
+	_engine_on = false
+
+func _process(delta: float) -> void:
+	var paused := get_tree().paused
+	_duck = move_toward(_duck, 1.0 if paused else 0.0, delta * 4.0)
+
+	# música: abaixa na pausa e fica mais lenta/grave na câmera lenta
+	AudioServer.set_bus_volume_db(AudioServer.get_bus_index("Music"), -10.0 * _duck)
+	if _music_a.playing and _current_music in LOOPING:
+		var slow: float = 1.0 - GameManager.slow_factor if GameManager.running else 0.0
+		_music_a.pitch_scale = lerp(_music_a.pitch_scale, 1.0 - slow * 0.35, 0.1)
+
+	# motor: tom acompanha a velocidade
+	var want := _engine_on and GameManager.running and not GameManager.game_over and not paused
+	var target_db := -14.0 if want else -80.0
+	_engine.volume_db = move_toward(_engine.volume_db, target_db, delta * (60.0 if want else 120.0))
+	if want:
+		var frac: float = clamp((GameManager.speed - 150.0) / (GameManager.max_speed - 150.0), 0.0, 1.0)
+		_engine.pitch_scale = 0.8 + frac * 1.1
+	if _engine.playing and _engine.volume_db <= -79.0 and not _engine_on:
+		_engine.stop()
+
+func _exit_tree() -> void:
+	# para tudo antes de fechar (evita aviso de recurso preso ao sair)
+	for p in [_music_a, _music_b, _engine] + _pool:
+		p.stop()
+		p.stream = null

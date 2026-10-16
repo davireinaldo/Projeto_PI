@@ -1,106 +1,321 @@
 extends Node
 
-# ---------- Carros selecionáveis ----------
-# Cada carro tem uma cor e uma pequena característica de jogo diferente.
-var car_options: Array = [
-	{
-		"name": "Turbo",
-		"description": "Troca de faixa mais rápido.\nBom pra desviar de última hora.",
-		"color": Color(0.85, 0.2, 0.2),
-		"lane_speed": 15.0,
-		"start_shield": 0.0
-	},
-	{
-		"name": "Equilibrado",
-		"description": "Sem vantagem nem desvantagem.\nO clássico, direto e confiável.",
-		"color": Color(0.2, 0.6, 1.0),
-		"lane_speed": 10.0,
-		"start_shield": 0.0
-	},
-	{
-		"name": "Blindado",
-		"description": "Começa cada corrida com um\nescudo de 3 segundos de graça.",
-		"color": Color(0.25, 0.75, 0.35),
-		"lane_speed": 9.0,
-		"start_shield": 3.0
-	}
-]
-var selected_car: int = 1
+# Estado global do ZERO-IMPACT (autoload):
+# carros, cenários, patentes e o estado da corrida em andamento.
 
-# ---------- Estado global do jogo ----------
-var score: float = 0.0
-var high_score: float = 0.0
-var speed: float = 300.0
+# ---------- Carros ----------
+# lane_speed   -> rapidez da troca de faixa
+# start_shield -> segundos de escudo grátis no começo da corrida
+# lives        -> batidas extras que o carro aguenta
+# coin_mult    -> multiplicador de moedas
+# score_mult   -> multiplicador de pontos
+# magnet       -> raio (px) do ímã de moedas (0 = sem ímã)
+var cars: Array = [
+	{"id": "equilibrado", "name": "Equilibrado", "model": "texture", "color": Color(0.2, 0.5, 1.0), "accent": Color(0.9, 0.95, 1.0),
+	 "price": 0, "desc": "Sem vantagem nem desvantagem.\nO clássico, direto e confiável.",
+	 "lane_speed": 10.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.0, "score_mult": 1.0, "magnet": 0.0},
+	{"id": "turbo", "name": "Turbo", "model": "sport", "color": Color(0.9, 0.18, 0.2), "accent": Color(1, 1, 1),
+	 "price": 0, "desc": "Troca de faixa mais rápido.\nBom pra desviar de última hora.",
+	 "lane_speed": 15.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.0, "score_mult": 1.0, "magnet": 0.0},
+	{"id": "blindado", "name": "Blindado", "model": "armored", "color": Color(0.25, 0.6, 0.32), "accent": Color(0.75, 0.8, 0.75),
+	 "price": 0, "desc": "Começa cada corrida com\n3 segundos de escudo grátis.",
+	 "lane_speed": 9.0, "start_shield": 3.0, "lives": 0, "coin_mult": 1.0, "score_mult": 1.0, "magnet": 0.0},
+	{"id": "pickup", "name": "Pickup", "model": "pickup", "color": Color(0.95, 0.55, 0.12), "accent": Color(0.2, 0.2, 0.22),
+	 "price": 400, "desc": "Pesada, mas resistente.\nAguenta uma batida extra.",
+	 "lane_speed": 9.0, "start_shield": 0.0, "lives": 1, "coin_mult": 1.0, "score_mult": 1.0, "magnet": 0.0},
+	{"id": "muscle", "name": "Muscle", "model": "muscle", "color": Color(0.13, 0.13, 0.16), "accent": Color(1.0, 0.8, 0.1),
+	 "price": 900, "desc": "Motor V8 que rende.\nGanha 50% mais moedas.",
+	 "lane_speed": 11.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.5, "score_mult": 1.0, "magnet": 0.0},
+	{"id": "esportivo", "name": "Esportivo", "model": "coupe", "color": Color(1.0, 0.82, 0.1), "accent": Color(0.1, 0.1, 0.12),
+	 "price": 1800, "desc": "Ímã de moedas e +25% de pontos.\nRápido e elegante.",
+	 "lane_speed": 14.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.0, "score_mult": 1.25, "magnet": 110.0},
+	{"id": "f1", "name": "F1", "model": "f1", "color": Color(0.85, 0.08, 0.35), "accent": Color(0.15, 0.95, 1.0),
+	 "price": 3500, "desc": "Agilidade máxima.\n+50% de pontos.",
+	 "lane_speed": 19.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.0, "score_mult": 1.5, "magnet": 0.0},
+	{"id": "zero", "name": "ZERO", "model": "legend", "color": Color(0.07, 0.09, 0.14), "accent": Color(0.1, 1.0, 0.9),
+	 "price": 7000, "desc": "O lendário. Escudo, vida extra,\nímã e moedas em dobro.",
+	 "lane_speed": 16.0, "start_shield": 4.0, "lives": 1, "coin_mult": 99999.0, "score_mult": 1.5, "magnet": 150.0},
+]
+
+# ---------- Cenários ----------
+# Cada cenário dura BIOME_LENGTH metros e se mistura com o próximo
+# nos últimos BIOME_BLEND metros.
+const BIOME_LENGTH := 2000.0
+const BIOME_BLEND := 300.0
+
+var biomes: Array = [
+	{"id": "cidade", "name": "CIDADE", "sign": "ENTRANDO NA CIDADE",
+	 "left": Color(0.42, 0.43, 0.46), "left2": Color(0.47, 0.48, 0.5),
+	 "right": Color(0.42, 0.43, 0.46), "right2": Color(0.47, 0.48, 0.5),
+	 "road": Color(0.15, 0.15, 0.18), "edge": Color(0.92, 0.92, 0.9), "dash": Color(1, 1, 0.85, 0.85),
+	 "decor_left": ["building", "building", "lamp"], "decor_right": ["building", "building", "lamp"]},
+	{"id": "campo", "name": "CAMPO", "sign": "ENTRANDO NO CAMPO",
+	 "left": Color(0.16, 0.42, 0.19), "left2": Color(0.19, 0.47, 0.22),
+	 "right": Color(0.16, 0.42, 0.19), "right2": Color(0.19, 0.47, 0.22),
+	 "road": Color(0.17, 0.17, 0.2), "edge": Color(0.92, 0.92, 0.9), "dash": Color(1, 1, 0.85, 0.85),
+	 "decor_left": ["tree", "tree", "bush", "hay"], "decor_right": ["tree", "tree", "bush", "hay"]},
+	{"id": "deserto", "name": "DESERTO", "sign": "ENTRANDO NO DESERTO",
+	 "left": Color(0.86, 0.71, 0.45), "left2": Color(0.82, 0.67, 0.41),
+	 "right": Color(0.86, 0.71, 0.45), "right2": Color(0.82, 0.67, 0.41),
+	 "road": Color(0.3, 0.27, 0.25), "edge": Color(0.95, 0.85, 0.6), "dash": Color(1, 0.9, 0.5, 0.85),
+	 "decor_left": ["cactus", "rock", "cactus", "tumbleweed"], "decor_right": ["cactus", "rock", "cactus", "tumbleweed"]},
+	{"id": "mar", "name": "BEIRA-MAR", "sign": "CHEGANDO NA BEIRA-MAR",
+	 "left": Color(0.93, 0.84, 0.62), "left2": Color(0.9, 0.8, 0.58),
+	 "right": Color(0.1, 0.45, 0.72), "right2": Color(0.12, 0.5, 0.78),
+	 "road": Color(0.2, 0.2, 0.24), "edge": Color(1, 1, 1), "dash": Color(1, 1, 1, 0.85),
+	 "decor_left": ["palm", "umbrella", "palm"], "decor_right": ["boat", "buoy", "wave"]},
+	{"id": "neve", "name": "MONTANHA NEVADA", "sign": "SUBINDO A MONTANHA NEVADA",
+	 "left": Color(0.9, 0.93, 0.97), "left2": Color(0.85, 0.89, 0.95),
+	 "right": Color(0.9, 0.93, 0.97), "right2": Color(0.85, 0.89, 0.95),
+	 "road": Color(0.26, 0.28, 0.32), "edge": Color(0.95, 0.4, 0.3), "dash": Color(1, 1, 1, 0.8),
+	 "decor_left": ["pine", "pine", "snowrock"], "decor_right": ["pine", "pine", "snowrock"]},
+	{"id": "neon", "name": "CIDADE NEON", "sign": "ENTRANDO NA CIDADE NEON",
+	 "left": Color(0.06, 0.04, 0.11), "left2": Color(0.08, 0.05, 0.14),
+	 "right": Color(0.06, 0.04, 0.11), "right2": Color(0.08, 0.05, 0.14),
+	 "road": Color(0.07, 0.06, 0.12), "edge": Color(1.0, 0.2, 0.8), "dash": Color(0.2, 0.95, 1.0, 0.9),
+	 "decor_left": ["neon_building", "neon_pole"], "decor_right": ["neon_building", "neon_pole"]},
+]
+
+# ---------- Patentes (por KM global) ----------
+var ranks: Array = [
+	{"name": "Bronze", "km": 0.0, "color": Color(0.8, 0.5, 0.25)},
+	{"name": "Prata", "km": 5.0, "color": Color(0.78, 0.8, 0.85)},
+	{"name": "Ouro", "km": 15.0, "color": Color(1.0, 0.8, 0.2)},
+	{"name": "Platina", "km": 40.0, "color": Color(0.45, 0.9, 0.85)},
+	{"name": "Diamante", "km": 80.0, "color": Color(0.45, 0.65, 1.0)},
+	{"name": "Lenda", "km": 150.0, "color": Color(1.0, 0.3, 0.55)},
+]
+
+# ---------- Pista ----------
+const LANES: Array = [140.0, 240.0, 340.0]
+const PLAYER_Y := 600.0
+# 10 px de tela = 1 metro. velocidade em km/h = px/s * 0.36
+const PX_PER_METER := 10.0
+
+# ---------- Estado da corrida ----------
+var running: bool = false # true só durante uma corrida de verdade
+var game_over: bool = false # congela pista e tráfego
+var speed: float = 300.0 # velocidade efetiva da pista (px/s)
+var cruise_speed: float = 300.0
 var base_speed: float = 300.0
 var max_speed: float = 900.0
-var speed_increase_rate: float = 5.0 # o quanto a velocidade sobe por segundo
-var game_over: bool = false
-var shield_active: bool = false
-var slow_mo_active: bool = false
+var speed_increase_rate: float = 5.0
 
-const SAVE_PATH := "user://highscore.save"
+var score: float = 0.0
+var distance_m: float = 0.0
+var coins_run: int = 0
+var lives: int = 0
+var shield_time: float = 0.0
+var shield_total: float = 1.0
+var grace_time: float = 0.0 # invencível depois de perder uma vida
+var slow_time: float = 0.0
+var slow_total: float = 1.0
+var slow_factor: float = 1.0
+var player_pos: Vector2 = Vector2(240, PLAYER_Y)
+var last_summary: Dictionary = {}
+
+# opções de teste via linha de comando:  -- --autopilot --start-km=4
+var debug_autopilot: bool = false
+var debug_start_m: float = 0.0
 
 signal game_over_triggered
-signal score_changed(new_score)
-signal speed_changed(new_speed)
-signal high_score_changed(new_high_score)
+signal shield_ended(broken: bool)
+signal life_lost
+signal power_collected(kind: String, pos: Vector2)
 
 func _ready() -> void:
-	_load_high_score()
-	reset_game()
+	process_mode = Node.PROCESS_MODE_PAUSABLE
+	_setup_input()
+	for arg in OS.get_cmdline_user_args():
+		if arg == "--autopilot":
+			debug_autopilot = true
+		elif arg.begins_with("--start-km="):
+			debug_start_m = arg.split("=")[1].to_float() * 1000.0
 
-func _load_high_score() -> void:
-	if FileAccess.file_exists(SAVE_PATH):
-		var f := FileAccess.open(SAVE_PATH, FileAccess.READ)
-		high_score = f.get_float()
-		f.close()
-	else:
-		high_score = 0.0
+func _setup_input() -> void:
+	var extra := {"steer_left": [KEY_LEFT, KEY_A], "steer_right": [KEY_RIGHT, KEY_D]}
+	for action in extra.keys():
+		if not InputMap.has_action(action):
+			InputMap.add_action(action)
+		for key in extra[action]:
+			var ev := InputEventKey.new()
+			ev.physical_keycode = key
+			InputMap.action_add_event(action, ev)
 
-func _save_high_score() -> void:
-	var f := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
-	f.store_float(high_score)
-	f.close()
+# ---------- carros ----------
 
-func reset_game() -> void:
-	score = 0.0
-	speed = base_speed
+func car_by_id(car_id: String) -> Dictionary:
+	for c in cars:
+		if c["id"] == car_id:
+			return c
+	return cars[0]
+
+func car_index(car_id: String) -> int:
+	for i in range(cars.size()):
+		if cars[i]["id"] == car_id:
+			return i
+	return 0
+
+func selected_car() -> Dictionary:
+	return car_by_id(String(SaveManager.data["selected"]))
+
+# ---------- cenários ----------
+
+# Devolve [índice_atual, índice_próximo, mistura 0..1]
+func biome_state(dist_m: float) -> Array:
+	var idx := int(floor(dist_m / BIOME_LENGTH))
+	var into := dist_m - idx * BIOME_LENGTH
+	var a := idx % biomes.size()
+	var b := (idx + 1) % biomes.size()
+	var t := 0.0
+	if into > BIOME_LENGTH - BIOME_BLEND:
+		t = smoothstep(0.0, 1.0, (into - (BIOME_LENGTH - BIOME_BLEND)) / BIOME_BLEND)
+	return [a, b, t]
+
+# ---------- patentes ----------
+
+func rank_index(km: float) -> int:
+	var r := 0
+	for i in range(ranks.size()):
+		if km >= ranks[i]["km"]:
+			r = i
+	return r
+
+# progresso 0..1 até a próxima patente (1 se já é a última)
+func rank_progress(km: float) -> float:
+	var i := rank_index(km)
+	if i >= ranks.size() - 1:
+		return 1.0
+	var a: float = ranks[i]["km"]
+	var b: float = ranks[i + 1]["km"]
+	return clamp((km - a) / (b - a), 0.0, 1.0)
+
+# ---------- corrida ----------
+
+func start_run() -> void:
+	var car := selected_car()
+	running = true
 	game_over = false
-	shield_active = false
-	slow_mo_active = false
+	cruise_speed = base_speed
+	speed = base_speed
+	score = 0.0
+	distance_m = debug_start_m
+	coins_run = 0
+	lives = int(car["lives"])
+	shield_time = 0.0
+	grace_time = 0.0
+	slow_time = 0.0
+	slow_factor = 1.0
+	if car["start_shield"] > 0.0:
+		activate_shield(car["start_shield"])
+
+func stop_run() -> void:
+	running = false
+	game_over = false
 
 func _process(delta: float) -> void:
-	if game_over:
+	if not running or game_over:
 		return
 
-	# aumenta a velocidade gradativamente até o limite máximo
-	if speed < max_speed:
-		speed += speed_increase_rate * delta
-		speed_changed.emit(speed)
+	if cruise_speed < max_speed:
+		cruise_speed = min(cruise_speed + speed_increase_rate * delta, max_speed)
 
-	# pontuação por sobrevivência (quanto mais rápido, mais pontos por segundo)
-	score += delta * (10.0 + speed * 0.02)
-	score_changed.emit(score)
+	var target_factor := 0.5 if slow_time > 0.0 else 1.0
+	slow_factor = move_toward(slow_factor, target_factor, delta * 1.5)
+	speed = cruise_speed * slow_factor
 
-func trigger_game_over() -> void:
-	game_over = true
-	if score > high_score:
-		high_score = score
-		_save_high_score()
-		high_score_changed.emit(high_score)
-	game_over_triggered.emit()
+	distance_m += speed * delta / PX_PER_METER
+	var car := selected_car()
+	score += delta * (10.0 + speed * 0.02) * float(car["score_mult"])
+
+	if shield_time > 0.0:
+		shield_time -= delta
+		if shield_time <= 0.0:
+			shield_time = 0.0
+			shield_ended.emit(false)
+	if grace_time > 0.0:
+		grace_time -= delta
+	if slow_time > 0.0:
+		slow_time = max(slow_time - delta, 0.0)
+
+func speed_kmh() -> int:
+	return int(speed * 0.36)
+
+func is_protected() -> bool:
+	return shield_time > 0.0 or grace_time > 0.0
 
 func activate_shield(duration: float) -> void:
-	shield_active = true
-	await get_tree().create_timer(duration).timeout
-	shield_active = false
+	shield_time = max(shield_time, duration)
+	shield_total = shield_time
 
 func activate_slow_mo(duration: float) -> void:
-	if slow_mo_active:
+	slow_time = max(slow_time, duration)
+	slow_total = slow_time
+
+func add_coin() -> void:
+	coins_run += 1
+
+# Chamado quando o jogador bate num veículo.
+# Devolve "shield", "life" ou "dead".
+func on_crash() -> String:
+	if shield_time > 0.0 or grace_time > 0.0:
+		return "shield"
+	if lives > 0:
+		lives -= 1
+		grace_time = 1.5
+		life_lost.emit()
+		return "life"
+	trigger_game_over()
+	return "dead"
+
+func trigger_game_over() -> void:
+	if game_over:
 		return
-	slow_mo_active = true
-	var old_speed := speed
-	speed *= 0.5
-	await get_tree().create_timer(duration).timeout
-	speed = old_speed
-	slow_mo_active = false
+	game_over = true
+	running = false
+	_finish_run()
+	game_over_triggered.emit()
+
+func _finish_run() -> void:
+	var car := selected_car()
+	var km := (distance_m - debug_start_m) / 1000.0
+	var final_score := int(score)
+	var collected := int(round(coins_run * float(car["coin_mult"])))
+	var bonus := int(round((int(km * 10.0) + int(final_score / 200.0)) * float(car["coin_mult"])))
+	var old_km := SaveManager.total_km()
+	var old_rank := rank_index(old_km)
+	var was_best := final_score > int(SaveManager.data["best_score"])
+	var top_pos := SaveManager.register_run(car["id"], km, final_score, collected + bonus)
+	var new_km := SaveManager.total_km()
+	last_summary = {
+		"km": km,
+		"score": final_score,
+		"collected": collected,
+		"bonus": bonus,
+		"new_best": was_best,
+		"top_pos": top_pos,
+		"old_rank": old_rank,
+		"new_rank": rank_index(new_km),
+		"total_km": new_km,
+	}
+
+# ---------- IA simples de desvio (menu e piloto automático) ----------
+
+func ai_pick_lane(current_lane: int, car_y: float) -> int:
+	var clear := [9999.0, 9999.0, 9999.0]
+	for t in get_tree().get_nodes_in_group("traffic"):
+		var dy: float = car_y - t.position.y
+		var half: float = t.length * 0.5
+		if dy > -half - 50.0 and dy < 520.0:
+			for l in range(3):
+				if t.occupies_lane(l):
+					clear[l] = min(clear[l], dy - half)
+	if clear[current_lane] > 300.0:
+		return current_lane
+	var best := current_lane
+	for l in range(3):
+		if abs(l - current_lane) == 2 and clear[1] < 140.0:
+			continue
+		if clear[l] > clear[best] + 20.0:
+			best = l
+	return best

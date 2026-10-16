@@ -1,77 +1,93 @@
-JOGO: CARRO DESVIADOR (2D) — Godot 4.x — versão completa
-==========================================================
+ZERO-IMPACT — jogo de corrida arcade 2D (Godot 4.3 ou mais novo)
+=================================================================
 
 COMO ABRIR
 ----------
-1. Abra o Godot Engine (versão 4.x).
-2. Clique em "Importar" e selecione o arquivo project.godot desta pasta.
-3. Aperte F5 (ou o botão de Play) para rodar o jogo.
+1. Abra o Godot 4.x, clique em "Importar" e escolha o project.godot desta pasta.
+2. Aperte F5 para jogar.
 
-FLUXO DO JOGO
--------------
-1. Tela de menu -> ENTER
-2. Tela de SELEÇÃO DE CARRO -> setas ESQUERDA/DIREITA trocam o carro,
-   ENTER confirma e começa a corrida
-3. Jogando: setas ESQUERDA/DIREITA trocam de faixa (3 faixas)
-4. Game Over -> ENTER volta pra tela de seleção de carro (pode escolher
-   outro carro na próxima tentativa)
+CONTROLES
+---------
+- Setas ESQUERDA/DIREITA ou A/D: trocar de faixa
+- Clique/toque na metade esquerda/direita da tela: trocar de faixa
+- ESC: pausa (na corrida) / voltar (nas outras telas)
+- Menus: setas + ENTER, ou mouse
 
-OS 3 CARROS
+TELAS
+-----
+Menu (pista rolando com tráfego e rivais) -> Garagem -> Corrida -> Game Over
+Também tem Ranking (patente + top 10) e Estatísticas (KM global e por carro).
+
+CARROS (scripts/GameManager.gd -> array "cars")
+------------------------------------------------
+Equilibrado (grátis) ..... o clássico
+Turbo (grátis) ........... troca de faixa rápida
+Blindado (grátis) ........ começa com 3s de escudo
+Pickup (400) ............. aguenta 1 batida extra
+Muscle (900) ............. +50% moedas
+Esportivo (1800) ......... ímã de moedas, +25% pontos
+F1 (3500) ................ agilidade máxima, +50% pontos
+ZERO (7000) .............. escudo, vida extra, ímã, moedas x2, +50% pontos
+Os desenhos de cada modelo ficam em scripts/CarVisual.gd.
+
+MOEDAS
+------
+Moedas aparecem em fileiras na pista. Ao final de cada corrida você ganha
+um bônus pela distância e pelos pontos. Gaste na Garagem.
+
+CENÁRIOS (a cada 2 km, com transição suave)
+-------------------------------------------
+Cidade -> Campo -> Deserto -> Beira-mar -> Montanha nevada -> Cidade neon -> repete
+Cores e decorações: GameManager.gd (array "biomes") e World.gd.
+
+PATENTES (por KM total rodado)
+-----------------------------
+Bronze 0 · Prata 5 · Ouro 15 · Platina 40 · Diamante 80 · Lenda 150 km
+
+TRÁFEGO
+-------
+Carros comuns (alguns ligam a seta e trocam de faixa), caminhões e ônibus.
+O tráfego aumenta com a velocidade, mas sempre sobra uma faixa livre.
+
+PODERES
+-------
+Escudo (ciano) ........ 5s, bolha brilhante; destrói o que bater
+Câmera lenta (roxo) ... 4s, tela arroxeada e rastro do carro
+Estrela (dourado) ..... +100 pontos com chuva de estrelas
+
+SOM E MÚSICA
 ------------
-- TURBO (vermelho)     -> troca de faixa mais rápido, ótimo pra desviar
-  de última hora.
-- EQUILIBRADO (azul)   -> sem vantagem nem desvantagem, o clássico.
-- BLINDADO (verde)     -> começa cada corrida com um escudo de 3
-  segundos de graça (destrói o primeiro carro que bater nele).
+- Música synthwave no menu e na corrida (fica mais lenta e grave na câmera
+  lenta e abaixa na pausa) + jingle de game over.
+- Ronco do motor que sobe de tom com a velocidade.
+- Efeitos: moeda, cada poder, batida, escudo bloqueando, vida perdida,
+  troca de faixa, buzina do tráfego, novo cenário e sons dos menus.
+- Ligar/desligar música e efeitos: botões no topo do menu (fica salvo).
+- Tudo é gerado por código, sem samples externos. Para mudar/recriar:
+    python tools/gerar_sons.py      (precisa de Python 3 + numpy)
+  O script cria os .wav em assets/audio/. A parte do jogo fica em
+  scripts/AudioManager.gd.
 
-Isso está definido em scripts/GameManager.gd, no array car_options —
-dá pra editar nome, cor e os valores de cada um, ou adicionar um 4º,
-5º carro (só lembre de ajustar a tela de seleção também, ver abaixo).
+SAVE
+----
+Tudo fica salvo em user://zero_impact_save.json
+(Windows: %APPDATA%\Godot\app_userdata\ZERO-IMPACT\). Apague esse arquivo
+para zerar o progresso.
 
-ONDE MEXER NO VISUAL DOS CARROS
----------------------------------
-- scripts/CarVisual.gd -> o desenho vetorial do carro em si (formato,
-  para-brisa, rodas, faróis). Usado tanto pelo carro do jogador quanto
-  pelos inimigos e pelos carrinhos de exemplo na tela de seleção.
-- scripts/GameManager.gd -> array car_options: cor e nome de cada um
-  dos 3 carros selecionáveis.
-- scripts/Obstacle.gd -> array visual_colors: cores dos carros inimigos.
-- scenes/Main.tscn -> nó "CarSelect" tem 3 filhos (Car1, Car2, Car3),
-  que são os carrinhos mostrados na tela de seleção. Se quiser mudar a
-  posição deles na tela, mexe no "position" de cada um ali.
-- scripts/CarSelectUI.gd -> desenha o destaque (círculo + setinha)
-  em volta do carro selecionado na tela de escolha.
+ARQUIVOS
+--------
+scripts/GameManager.gd .. carros, cenários, patentes, estado da corrida
+scripts/SaveManager.gd .. salvar/carregar
+scripts/Menu.gd, Garage.gd, Game.gd, Ranking.gd, Stats.gd .. as telas
+scripts/World.gd ........ pista e cenários
+scripts/Traffic.gd ...... veículos do tráfego
+scripts/Spawner.gd ...... cria tráfego, moedas e poderes
+scripts/Player.gd / PlayerFX.gd .. carro do jogador e efeitos
+scripts/FX.gd, UIKit.gd, DrawHook.gd .. efeitos e interface
+scripts/AudioManager.gd . música, efeitos sonoros e motor
+tools/gerar_sons.py ..... gera os arquivos de áudio
 
-OUTROS LUGARES ÚTEIS
-----------------------
-- scripts/Road.gd         -> pista, faixas, grama.
-- scripts/PowerUp.gd      -> os 3 tipos de power-up e os ícones deles.
-- scripts/Main.gd         -> menu, seleção de carro, spawn de
-  obstáculos/power-ups, transições de estado.
-- scenes/Explosion.tscn   -> efeito de partículas ao bater.
-
-ADICIONAR UM 4º CARRO (passo a passo rápido)
------------------------------------------------
-1. Em GameManager.gd, adicione um novo dicionário dentro de car_options
-   com name, description, color, lane_speed e start_shield.
-2. Em Main.tscn, dentro do nó "CarSelect", duplique um dos nós Car1/2/3
-   (Cena > Duplicar Nó no Godot) e reposicione-o (ex: x=440, ou
-   reorganize todos os 4 em outra disposição).
-3. Em CarSelectUI.gd, adicione o novo nó no array "previews".
-Pronto — a lógica de troca (setas esquerda/direita) já usa o tamanho
-do array car_options automaticamente.
-
-PERSONALIZAR RÁPIDO
---------------------
-- Dificuldade: GameManager.gd -> speed_increase_rate e max_speed.
-- Frequência de obstáculos/power-ups: Main.tscn -> ObstacleTimer /
-  PowerUpTimer -> wait_time.
-- Duração dos power-ups: PowerUp.gd -> apply_effect().
-
-IDEIAS PARA EVOLUIR AINDA MAIS (é só pedir)
----------------------------------------------
-- Sistema de vidas em vez de game over instantâneo.
-- Combo/multiplicador de pontos por desviar por pouco.
-- Sons e música (efeitos de motor, colisão, coleta de power-up).
-- Ranking de melhores pontuações salvo localmente.
-- Mais carros com características diferentes.
+TESTE (opcional)
+----------------
+Rodar com piloto automático e começar num km específico:
+  godot --path . -- --autopilot --start-km=4
