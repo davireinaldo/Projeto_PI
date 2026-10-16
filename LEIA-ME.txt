@@ -18,6 +18,16 @@ TELAS
 Menu (pista rolando com tráfego e rivais) -> Garagem -> Corrida -> Game Over
 Também tem Ranking (patente + top 10) e Estatísticas (KM global e por carro).
 
+MODO POR TURNOS
+---------------
+Menu -> POR TURNOS: cada jogador digita o nome (até 8) e ENTER/ADICIONAR.
+A ordem da lista é a ordem das vezes. Cada um corre uma vez; entre as
+corridas aparece "VEZ DE <nome>" com o placar parcial. No fim, a tela de
+RESULTADO mostra quem chegou mais longe (desempate pelos pontos).
+REVANCHE repete com os mesmos nomes; JOGADORES volta para editar a lista.
+Os nomes ficam salvos e aparecem no TOP 10 do Ranking.
+Arquivo: scripts/Turns.gd (estado dos turnos em GameManager.gd).
+
 CARROS (scripts/GameManager.gd -> array "cars")
 ------------------------------------------------
 Equilibrado (grátis) ..... o clássico

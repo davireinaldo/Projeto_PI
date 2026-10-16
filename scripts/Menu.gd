@@ -21,6 +21,7 @@ var _racer_t: float = 1.5
 func _ready() -> void:
 	get_tree().paused = false
 	GameManager.stop_run()
+	GameManager.end_turns()
 	GameManager.cruise_speed = 520.0
 	GameManager.speed = 520.0
 	AudioManager.quiet_ui()
@@ -86,11 +87,13 @@ func _build_ui() -> void:
 	var x := 120.0
 	var w := 240.0
 	var buttons := [
-		UI.button(root, "JOGAR", Rect2(x, 296, w, 56), _play, 26),
-		UI.button(root, "GARAGEM", Rect2(x, 362, w, 46), func(): UI.go(get_tree(), "res://scenes/Garage.tscn")),
-		UI.button(root, "RANKING", Rect2(x, 418, w, 46), func(): UI.go(get_tree(), "res://scenes/Ranking.tscn")),
-		UI.button(root, "ESTATÍSTICAS", Rect2(x, 474, w, 46), func(): UI.go(get_tree(), "res://scenes/Stats.tscn")),
-		UI.button(root, "SAIR", Rect2(x, 530, w, 46), func(): get_tree().quit()),
+		UI.button(root, "JOGAR", Rect2(x, 288, w, 52), _play, 26),
+		UI.button(root, "POR TURNOS", Rect2(x, 346, w, 40), func(): UI.go(get_tree(), "res://scenes/Turns.tscn")),
+		UI.button(root, "GARAGEM", Rect2(x, 392, w, 40), func(): UI.go(get_tree(), "res://scenes/Garage.tscn")),
+		UI.button(root, "RANKING", Rect2(x, 438, w, 40), func(): UI.go(get_tree(), "res://scenes/Ranking.tscn")),
+		UI.button(root, "ESTATÍSTICAS", Rect2(x, 484, w, 40), func(): UI.go(get_tree(), "res://scenes/Stats.tscn")),
+		UI.button(root, "CRÉDITOS", Rect2(x, 530, w, 40), func(): UI.go(get_tree(), "res://scenes/Credits.tscn")),
+		UI.button(root, "SAIR", Rect2(x, 576, w, 40), func(): get_tree().quit()),
 	]
 	buttons[0].add_theme_stylebox_override("normal", UI.style(Color(0.05, 0.3, 0.32, 0.9), UI.ACCENT, 10, 2))
 
@@ -111,8 +114,13 @@ func _build_ui() -> void:
 	buttons[0].grab_focus()
 
 	var car := GameManager.selected_car()
-	UI.label(root, "Carro: %s" % car["name"], Vector2(0, 586), 14, Color(1, 1, 1, 0.75), 480, HORIZONTAL_ALIGNMENT_CENTER)
+	UI.label(root, "Carro: %s" % car["name"], Vector2(0, 628), 14, Color(1, 1, 1, 0.75), 480, HORIZONTAL_ALIGNMENT_CENTER)
 	UI.label(root, "Setas + ENTER  ou  mouse", Vector2(0, 698), 12, Color(1, 1, 1, 0.45), 480, HORIZONTAL_ALIGNMENT_CENTER)
+
+	if SaveManager.just_reset:
+		SaveManager.just_reset = false
+		var msg := UI.label(root, "PROGRESSO RESETADO", Vector2(0, 244), 20, UI.HOT, 480, HORIZONTAL_ALIGNMENT_CENTER)
+		create_tween().tween_property(msg, "modulate:a", 0.0, 1.0).set_delay(2.5)
 
 func _play() -> void:
 	UI.go(get_tree(), "res://scenes/Game.tscn")
@@ -121,7 +129,7 @@ func _draw_back(ci: Control) -> void:
 	# escurece o topo para o logo aparecer
 	for i in range(30):
 		ci.draw_rect(Rect2(0, i * 10, 480, 10), Color(0.02, 0.02, 0.05, 0.8 * (1.0 - i / 30.0)))
-	ci.draw_rect(Rect2(100, 286, 280, 300), Color(0, 0, 0, 0.25))
+	ci.draw_rect(Rect2(100, 278, 280, 346), Color(0, 0, 0, 0.25))
 
 	UI.draw_rank_badge(ci, Vector2(32, 34), 18, GameManager.rank_index(SaveManager.total_km()))
 	UI.draw_coin(ci, Vector2(462 - UI.font().get_string_size(str(SaveManager.coins()), HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x - 16, 34), 11)

@@ -9,9 +9,31 @@ const OLD_HIGHSCORE_PATH := "user://highscore.save"
 const TOP_SIZE := 10
 
 var data: Dictionary = {}
+var just_reset := false  # o Menu mostra o aviso "PROGRESSO RESETADO"
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS  # Ctrl+P funciona até com o jogo pausado
 	load_data()
+
+# Ctrl+P: apaga todo o progresso (mantém só as opções de som) e volta ao menu.
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo \
+			and event.ctrl_pressed and event.physical_keycode == KEY_P:
+		get_viewport().set_input_as_handled()
+		reset()
+		get_tree().paused = false
+		GameManager.stop_run()
+		AudioManager.quiet_ui()
+		get_tree().change_scene_to_file("res://scenes/Menu.tscn")
+
+func reset() -> void:
+	var music: bool = data.get("music_on", true)
+	var sfx: bool = data.get("sfx_on", true)
+	data = _defaults()
+	data["music_on"] = music
+	data["sfx_on"] = sfx
+	save()
+	just_reset = true
 
 func _defaults() -> Dictionary:
 	return {
@@ -25,6 +47,7 @@ func _defaults() -> Dictionary:
 		"selected": "equilibrado",
 		"car_km": {},
 		"top": [],
+		"turn_players": [], # últimos nomes usados no modo por turnos
 		"music_on": true,
 		"sfx_on": true
 	}
@@ -79,7 +102,7 @@ func car_km(car_id: String) -> float:
 	return float(data["car_km"].get(car_id, 0.0))
 
 # Registra uma corrida terminada. Devolve a posição no top 10 (1..10) ou 0.
-func register_run(car_id: String, km: float, score: int, coins_gained: int) -> int:
+func register_run(car_id: String, km: float, score: int, coins_gained: int, player_name: String = "") -> int:
 	data["runs"] = int(data["runs"]) + 1
 	data["total_km"] = total_km() + km
 	data["car_km"][car_id] = car_km(car_id) + km
@@ -91,6 +114,7 @@ func register_run(car_id: String, km: float, score: int, coins_gained: int) -> i
 		"score": score,
 		"km": snappedf(km, 0.01),
 		"car": car_id,
+		"name": player_name,
 		"date": Time.get_date_string_from_system()
 	}
 	var top: Array = data["top"]

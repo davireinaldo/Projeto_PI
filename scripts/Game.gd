@@ -188,6 +188,8 @@ func _build_hud() -> void:
 	score_label = UI.label(hud, "PONTOS 0", Vector2(26, 46), 15, Color(0.75, 0.85, 1.0))
 	coin_label = UI.label(hud, "0", Vector2(384, 24), 24, UI.GOLD)
 	UI.label(hud, "ESC  pausa", Vector2(392, 694), 12, Color(1, 1, 1, 0.5))
+	if GameManager.turn_mode:
+		UI.label(hud, "VEZ DE " + GameManager.current_player().to_upper(), Vector2(210, 80), 15, UI.ACCENT, 260, HORIZONTAL_ALIGNMENT_RIGHT)
 	hud.add_child(DrawHook.new(_draw_hud))
 
 	banner = UI.label(hud, "", Vector2(0, 170), 30, Color.WHITE, 480, HORIZONTAL_ALIGNMENT_CENTER)
@@ -309,6 +311,9 @@ func _build_game_over() -> void:
 		["Bônus da corrida", "+%d" % s["bonus"]],
 		["Total de moedas", str(SaveManager.coins())],
 	]
+	if GameManager.turn_mode:
+		var last: Dictionary = GameManager.turn_results.back()
+		rows.push_front(["Jogador", String(last["name"])])
 	for r in rows:
 		UI.label(box, r[0], Vector2(30, y), 18, Color(0.75, 0.8, 0.9))
 		UI.label(box, r[1], Vector2(200, y), 20, Color.WHITE, 170, HORIZONTAL_ALIGNMENT_RIGHT)
@@ -334,6 +339,16 @@ func _build_game_over() -> void:
 		UI.draw_bar(ci, Rect2(100, by + 34, 270, 12), GameManager.rank_progress(km), rank["color"])
 	box.add_child(DrawHook.new(draw_rank, Rect2(0, 0, 400, 560)))
 	y += 90.0
+
+	if GameManager.turn_mode:
+		var turn_text := "VER RESULTADO"
+		if not GameManager.turns_finished():
+			turn_text = "PRÓXIMO: " + GameManager.current_player().to_upper()
+		var nb := UI.button(box, turn_text, Rect2(40, y, 320, 50), func(): UI.go(get_tree(), "res://scenes/Turns.tscn"), 20)
+		nb.add_theme_stylebox_override("normal", UI.style(Color(0.05, 0.3, 0.32, 0.9), UI.ACCENT, 10, 2))
+		nb.clip_text = true
+		nb.grab_focus()
+		return
 
 	var b1 := UI.button(box, "CORRER DE NOVO", Rect2(40, y, 320, 50), func(): UI.go(get_tree(), "res://scenes/Game.tscn"), 22)
 	var b2 := UI.button(box, "GARAGEM", Rect2(40, y + 60, 155, 44), func(): UI.go(get_tree(), "res://scenes/Garage.tscn"))

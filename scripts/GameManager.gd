@@ -114,6 +114,14 @@ var slow_factor: float = 1.0
 var player_pos: Vector2 = Vector2(240, PLAYER_Y)
 var last_summary: Dictionary = {}
 
+# ---------- Modo por turnos ----------
+# Cada jogador corre uma vez, na sua vez; no fim vence quem foi mais longe.
+const TURN_MAX_PLAYERS := 8
+var turn_mode: bool = false
+var turn_players: Array = [] # nomes, na ordem das vezes
+var turn_index: int = 0 # de quem é a vez agora
+var turn_results: Array = [] # {"name", "km", "score", "car"} de quem já correu
+
 # opções de teste via linha de comando:  -- --autopilot --start-km=4
 var debug_autopilot: bool = false
 var debug_start_m: float = 0.0
@@ -285,8 +293,12 @@ func _finish_run() -> void:
 	var old_km := SaveManager.total_km()
 	var old_rank := rank_index(old_km)
 	var was_best := final_score > int(SaveManager.data["best_score"])
-	var top_pos := SaveManager.register_run(car["id"], km, final_score, collected + bonus)
+	var player_name := current_player() if turn_mode else ""
+	var top_pos := SaveManager.register_run(car["id"], km, final_score, collected + bonus, player_name)
 	var new_km := SaveManager.total_km()
+	if turn_mode:
+		turn_results.append({"name": player_name, "km": km, "score": final_score, "car": car["id"]})
+		turn_index += 1
 	last_summary = {
 		"km": km,
 		"score": final_score,
@@ -298,6 +310,36 @@ func _finish_run() -> void:
 		"new_rank": rank_index(new_km),
 		"total_km": new_km,
 	}
+
+# ---------- turnos ----------
+
+func start_turns(names: Array) -> void:
+	turn_mode = true
+	turn_players = names.duplicate()
+	turn_index = 0
+	turn_results = []
+
+func end_turns() -> void:
+	turn_mode = false
+	turn_index = 0
+	turn_results = []
+
+func current_player() -> String:
+	if turn_index < turn_players.size():
+		return String(turn_players[turn_index])
+	return ""
+
+func turns_finished() -> bool:
+	return turn_index >= turn_players.size()
+
+# Resultados do mais longe para o mais perto (desempate pelos pontos).
+func turn_standings() -> Array:
+	var list := turn_results.duplicate()
+	list.sort_custom(func(a, b):
+		if is_equal_approx(float(a["km"]), float(b["km"])):
+			return int(a["score"]) > int(b["score"])
+		return float(a["km"]) > float(b["km"]))
+	return list
 
 # ---------- IA simples de desvio (menu e piloto automático) ----------
 

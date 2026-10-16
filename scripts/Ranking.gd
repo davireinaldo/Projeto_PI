@@ -53,10 +53,10 @@ func _ready() -> void:
 	UI.label(root, "TOP 10 CORRIDAS", Vector2(0, 318), 18, UI.GOLD, 480, HORIZONTAL_ALIGNMENT_CENTER)
 	var head := Color(0.6, 0.65, 0.75)
 	UI.label(root, "#", Vector2(30, 346), 12, head)
-	UI.label(root, "PONTOS", Vector2(60, 346), 12, head)
-	UI.label(root, "DISTÂNCIA", Vector2(160, 346), 12, head)
-	UI.label(root, "CARRO", Vector2(260, 346), 12, head)
-	UI.label(root, "DATA", Vector2(360, 346), 12, head)
+	UI.label(root, "JOGADOR", Vector2(56, 346), 12, head)
+	UI.label(root, "PONTOS", Vector2(184, 346), 12, head)
+	UI.label(root, "DISTÂNCIA", Vector2(262, 346), 12, head)
+	UI.label(root, "CARRO", Vector2(364, 346), 12, head)
 	var top: Array = SaveManager.data["top"]
 	if top.is_empty():
 		UI.label(root, "Nenhuma corrida ainda.\nVá para a pista!", Vector2(0, 440), 16, Color(0.7, 0.75, 0.85), 480, HORIZONTAL_ALIGNMENT_CENTER)
@@ -64,20 +64,16 @@ func _ready() -> void:
 		var e: Dictionary = top[i]
 		var y := 368.0 + i * 26.0
 		var c: Color = [UI.GOLD, Color(0.85, 0.87, 0.92), Color(0.85, 0.55, 0.3)][i] if i < 3 else Color.WHITE
+		var player := String(e.get("name", ""))
 		UI.label(root, str(i + 1), Vector2(30, y), 15, c)
-		UI.label(root, str(int(e["score"])), Vector2(60, y), 15, c)
-		UI.label(root, "%.2f km" % float(e["km"]), Vector2(160, y), 15, Color.WHITE)
-		UI.label(root, GameManager.car_by_id(String(e["car"]))["name"], Vector2(260, y), 15, Color.WHITE)
-		UI.label(root, _fmt_date(String(e["date"])), Vector2(360, y), 13, Color(0.7, 0.75, 0.85))
+		var name_label := UI.label(root, player if player != "" else "—", Vector2(56, y), 15, Color.WHITE, 120)
+		name_label.clip_text = true
+		UI.label(root, str(int(e["score"])), Vector2(184, y), 15, c)
+		UI.label(root, "%.2f km" % float(e["km"]), Vector2(262, y), 15, Color.WHITE)
+		UI.label(root, GameManager.car_by_id(String(e["car"]))["name"], Vector2(364, y), 15, Color(0.7, 0.75, 0.85))
 
 	var back := UI.button(root, "VOLTAR", Rect2(140, 656, 200, 48), func(): UI.go(get_tree(), "res://scenes/Menu.tscn"))
 	back.grab_focus()
-
-func _fmt_date(iso: String) -> String:
-	var p := iso.split("-")
-	if p.size() == 3:
-		return "%s/%s/%s" % [p[2], p[1], p[0].substr(2)]
-	return iso
 
 func _process(delta: float) -> void:
 	_t += delta
