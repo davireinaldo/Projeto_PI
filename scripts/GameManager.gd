@@ -164,6 +164,7 @@ var turn_results: Array = [] # {"name", "km", "score", "car"} de quem já correu
 
 # opções de teste via linha de comando:  -- --autopilot --start-km=4
 var debug_autopilot: bool = false
+var paint_car: String = "" # carro aberto na tela Pintura (a Garagem volta nele)
 var debug_start_m: float = 0.0
 
 signal game_over_triggered

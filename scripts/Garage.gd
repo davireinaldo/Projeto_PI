@@ -2,12 +2,14 @@ extends Node2D
 
 # Garagem: escolher, comprar e ver os atributos de cada carro.
 # Setas esquerda/direita (ou os botões < >) trocam o carro.
+# PINTAR abre a tela de pintura e rastro do carro (Paint.tscn).
 
 const World := preload("res://scripts/World.gd")
 const CarVisual := preload("res://scripts/CarVisual.gd")
 const FX := preload("res://scripts/FX.gd")
 const UI := preload("res://scripts/UIKit.gd")
 const DrawHook := preload("res://scripts/DrawHook.gd")
+const Paints := preload("res://scripts/Paints.gd")
 
 const CENTER := Vector2(240, 225)
 
@@ -21,6 +23,8 @@ var km_label: Label
 var coins_label: Label
 var msg_label: Label
 var action_btn: Button
+var paint_btn: Button
+var back_btn: Button
 var _t: float = 0.0
 var _swap: float = 1.0 # animação de troca de carro
 
@@ -34,7 +38,10 @@ func _ready() -> void:
 	add_child(world)
 
 	AudioManager.play_music("menu")
-	index = GameManager.car_index(String(SaveManager.data["selected"]))
+	# voltando da Pintura, abre no carro que estava sendo pintado
+	var start_id := GameManager.paint_car if GameManager.paint_car != "" else String(SaveManager.data["selected"])
+	GameManager.paint_car = ""
+	index = GameManager.car_index(start_id)
 	_build_ui()
 	_refresh()
 
@@ -92,25 +99,37 @@ func _build_ui() -> void:
 	var back := UI.button(root, "VOLTAR", Rect2(12, 16, 100, 38), func(): UI.go(get_tree(), "res://scenes/Menu.tscn"), 16)
 	UI.button(root, "<", Rect2(14, CENTER.y - 32, 52, 64), func(): _change(-1), 30)
 	UI.button(root, ">", Rect2(414, CENTER.y - 32, 52, 64), func(): _change(1), 30)
+	paint_btn = UI.button(root, "PINTAR", Rect2(362, 282, 104, 40), _on_paint, 16)
+	paint_btn.add_theme_color_override("font_color", UI.GOLD)
 	action_btn = UI.button(root, "", Rect2(24, 640, 210, 54), _on_action, 18)
 	var race := UI.button(root, "CORRER", Rect2(246, 640, 210, 54), _on_race, 22)
 	race.add_theme_stylebox_override("normal", UI.style(Color(0.05, 0.3, 0.32, 0.9), UI.ACCENT, 10, 2))
 	for b in [back, action_btn, race]:
 		b.focus_neighbor_left = b.get_path_to(b)
 		b.focus_neighbor_right = b.get_path_to(b)
-	back.focus_neighbor_bottom = back.get_path_to(action_btn)
-	action_btn.focus_neighbor_top = action_btn.get_path_to(back)
+	back.focus_neighbor_bottom = back.get_path_to(paint_btn)
+	paint_btn.focus_neighbor_top = paint_btn.get_path_to(back)
+	paint_btn.focus_neighbor_bottom = paint_btn.get_path_to(action_btn)
+	action_btn.focus_neighbor_top = action_btn.get_path_to(paint_btn)
 	action_btn.focus_neighbor_bottom = action_btn.get_path_to(race)
 	race.focus_neighbor_top = race.get_path_to(action_btn)
 	race.focus_neighbor_bottom = race.get_path_to(back)
+	paint_btn.focus_neighbor_left = paint_btn.get_path_to(paint_btn)
+	paint_btn.focus_neighbor_right = paint_btn.get_path_to(paint_btn)
+	back_btn = back
 	race.grab_focus()
 
 func _refresh() -> void:
 	var car := _car()
 	var owned := SaveManager.is_owned(car["id"])
 	var selected: bool = SaveManager.data["selected"] == car["id"]
-	preview.setup(car["model"], car["color"], car["accent"])
+	Paints.apply(preview, car)
 	preview.dim = 0.0 if owned else 0.55
+	# sem o PINTAR (carro bloqueado), as setas pulam direto entre VOLTAR e o botão de ação
+	paint_btn.visible = owned
+	var mid: Button = paint_btn if owned else action_btn
+	back_btn.focus_neighbor_bottom = back_btn.get_path_to(mid)
+	action_btn.focus_neighbor_top = action_btn.get_path_to(paint_btn if owned else back_btn)
 	name_label.text = String(car["name"]).to_upper()
 	desc_label.text = car["desc"]
 	coins_label.text = str(SaveManager.coins())
@@ -153,6 +172,10 @@ func _select(car: Dictionary) -> void:
 	SaveManager.data["selected"] = car["id"]
 	SaveManager.save()
 	_refresh()
+
+func _on_paint() -> void:
+	GameManager.paint_car = _car()["id"]
+	UI.go(get_tree(), "res://scenes/Paint.tscn")
 
 func _on_race() -> void:
 	var car := _car()

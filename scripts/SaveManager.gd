@@ -115,6 +115,10 @@ func _defaults() -> Dictionary:
 		"missions": [], # missões ativas (ver Missions.gd)
 		"missions_done": 0,
 		"upgrades": {}, # nível de cada melhoria da Oficina
+		"paint": {}, # pintura que cada carro está usando (ver Paints.gd)
+		"trail": {}, # rastro que cada carro está usando
+		"paints_owned": [],
+		"trails_owned": [],
 		"tutorial_done": false,
 		"online_id": "", # identificação no ranking online (ver OnlineRanking.gd)
 		"online_name": "",

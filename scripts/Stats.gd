@@ -5,6 +5,7 @@ extends Node2D
 
 const World := preload("res://scripts/World.gd")
 const CarVisual := preload("res://scripts/CarVisual.gd")
+const Paints := preload("res://scripts/Paints.gd")
 const UI := preload("res://scripts/UIKit.gd")
 const DrawHook := preload("res://scripts/DrawHook.gd")
 
@@ -52,7 +53,7 @@ func _ready() -> void:
 		var y := 342.0 + i * 36.0
 		var owned := SaveManager.is_owned(c["id"])
 		var icon := CarVisual.new()
-		icon.setup(c["model"], c["color"], c["accent"])
+		Paints.apply(icon, c)
 		icon.dim = 0.0 if owned else 0.6
 		icon.rotation = PI * 0.5
 		icon.scale = Vector2(0.42, 0.42)

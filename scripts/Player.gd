@@ -7,6 +7,7 @@ extends Area2D
 
 const CarVisual := preload("res://scripts/CarVisual.gd")
 const PlayerFX := preload("res://scripts/PlayerFX.gd")
+const Paints := preload("res://scripts/Paints.gd")
 
 signal crashed(other: Area2D)
 signal coin_picked(coin: Area2D)
@@ -40,7 +41,7 @@ func _ready() -> void:
 	add_child(trail)
 
 	visual = CarVisual.new()
-	visual.setup(car["model"], car["color"], car["accent"])
+	Paints.apply(visual, car)
 	add_child(visual)
 
 	var bubble := PlayerFX.new()

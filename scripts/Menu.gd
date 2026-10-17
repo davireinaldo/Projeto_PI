@@ -9,6 +9,7 @@ const Spawner := preload("res://scripts/Spawner.gd")
 const Weather := preload("res://scripts/Weather.gd")
 const Lighting := preload("res://scripts/Lighting.gd")
 const CarVisual := preload("res://scripts/CarVisual.gd")
+const Paints := preload("res://scripts/Paints.gd")
 const UI := preload("res://scripts/UIKit.gd")
 const DrawHook := preload("res://scripts/DrawHook.gd")
 
@@ -48,7 +49,7 @@ func _ready() -> void:
 
 	var car := GameManager.selected_car()
 	hero = CarVisual.new()
-	hero.setup(car["model"], car["color"], car["accent"])
+	Paints.apply(hero, car)
 	hero.position = Vector2(GameManager.LANES[1], 655)
 	add_child(hero)
 

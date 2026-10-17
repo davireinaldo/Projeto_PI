@@ -42,7 +42,8 @@ Muscle (900) ............. +50% moedas
 Esportivo (1800) ......... ímã de moedas, +25% pontos
 F1 (3500) ................ agilidade máxima, +50% pontos
 ZERO (10000) ............. escudo, vida extra, ímã, moedas x2, +50% pontos
-Os desenhos de cada modelo ficam em scripts/CarVisual.gd.
+Os desenhos de cada modelo ficam em assets/images/cars/ (gerados por
+tools/gerar_carros.py) e são montados em scripts/CarVisual.gd.
 
 MOEDAS
 ------
@@ -175,8 +176,11 @@ scripts/Player.gd / PlayerFX.gd .. carro do jogador e efeitos
 scripts/FX.gd, UIKit.gd, DrawHook.gd .. efeitos e interface
 scripts/AudioManager.gd . música, efeitos sonoros e motor
 scripts/Upgrades.gd ..... tela da Oficina
+scripts/Paints.gd ....... cores e rastros dos carros (preços, patentes)
+scripts/PaintShop.gd .... tela Pintura (aberta pelo botão PINTAR da Garagem)
 scripts/OnlineRanking.gd  ranking online (Supabase)
 tools/gerar_sons.py ..... gera os arquivos de áudio
+tools/gerar_carros.py ... gera os desenhos dos carros (assets/images/cars/*.svg)
 
 TESTE (opcional)
 ----------------
