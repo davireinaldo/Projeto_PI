@@ -19,6 +19,8 @@ var hero: Node2D
 var hero_lane: int = 1
 var _t: float = 0.0
 var _racer_t: float = 1.5
+var _menu_bottom: float = 628.0 # fim da coluna de botões (para o fundo escuro)
+var _fs_btn: Button
 
 func _ready() -> void:
 	get_tree().paused = false
@@ -66,6 +68,8 @@ func _process(delta: float) -> void:
 	var diff: float = GameManager.LANES[hero_lane] - hero.position.x
 	hero.position.x += diff * clamp(delta * 9.0, 0.0, 1.0)
 	hero.rotation = lerp(hero.rotation, clamp(diff * 0.012, -0.25, 0.25), 0.25)
+	# o jogador pode sair da tela cheia pelo navegador (Esc), então confere sempre
+	_fs_btn.text = "TELA CHEIA: " + ("ON" if UI.is_fullscreen() else "OFF")
 
 	_racer_t -= delta
 	if _racer_t <= 0.0:
@@ -97,17 +101,27 @@ func _build_ui() -> void:
 
 	var x := 120.0
 	var w := 240.0
-	var buttons := [
-		UI.button(root, "JOGAR", Rect2(x, 282, w, 50), _play, 26),
-		UI.button(root, "POR TURNOS", Rect2(x, 338, w, 36), func(): UI.go(get_tree(), "res://scenes/Turns.tscn")),
-		UI.button(root, "MISSÕES", Rect2(x, 379, w, 36), func(): UI.go(get_tree(), "res://scenes/Missions.tscn")),
-		UI.button(root, "GARAGEM", Rect2(x, 420, w, 36), func(): UI.go(get_tree(), "res://scenes/Garage.tscn")),
-		UI.button(root, "RANKING", Rect2(x, 461, w, 36), func(): UI.go(get_tree(), "res://scenes/Ranking.tscn")),
-		UI.button(root, "ESTATÍSTICAS", Rect2(x, 502, w, 36), func(): UI.go(get_tree(), "res://scenes/Stats.tscn")),
-		UI.button(root, "CRÉDITOS", Rect2(x, 543, w, 36), func(): UI.go(get_tree(), "res://scenes/Credits.tscn")),
-		UI.button(root, "SAIR", Rect2(x, 584, w, 36), func(): get_tree().quit()),
+	var screens := [
+		["POR TURNOS", "res://scenes/Turns.tscn"],
+		["MISSÕES", "res://scenes/Missions.tscn"],
+		["GARAGEM", "res://scenes/Garage.tscn"],
+		["OFICINA", "res://scenes/Upgrades.tscn"],
+		["RANKING", "res://scenes/Ranking.tscn"],
+		["ESTATÍSTICAS", "res://scenes/Stats.tscn"],
+		["CRÉDITOS", "res://scenes/Credits.tscn"],
 	]
+	var buttons := [UI.button(root, "JOGAR", Rect2(x, 278, w, 50), _play, 26)]
 	buttons[0].add_theme_stylebox_override("normal", UI.style(Color(0.05, 0.3, 0.32, 0.9), UI.ACCENT, 10, 2))
+	var y := 334.0
+	for s in screens:
+		var scene: String = s[1]
+		buttons.append(UI.button(root, s[0], Rect2(x, y, w, 34), func(): UI.go(get_tree(), scene)))
+		y += 38.0
+	# no navegador "sair" não fecha nada, então só aparece no PC
+	if not OS.has_feature("web"):
+		buttons.append(UI.button(root, "SAIR", Rect2(x, y, w, 34), func(): get_tree().quit()))
+		y += 38.0
+	_menu_bottom = y + 2.0
 
 	# opções de som
 	var music_btn := UI.button(root, "", Rect2(266, 56, 102, 30), func(): AudioManager.toggle_music(), 12)
@@ -120,14 +134,16 @@ func _build_ui() -> void:
 	music_btn.pressed.connect(refresh)
 	sfx_btn.pressed.connect(refresh)
 	refresh.call()
+	_fs_btn = UI.button(root, "", Rect2(10, 56, 140, 30), UI.toggle_fullscreen, 12)
+	buttons.append(_fs_btn)
 	buttons.append(music_btn)
 	buttons.append(sfx_btn)
 	UI.chain_vertical(buttons)
 	buttons[0].grab_focus()
 
 	var car := GameManager.selected_car()
-	UI.label(root, "Carro: %s" % car["name"], Vector2(0, 628), 14, Color(1, 1, 1, 0.75), 480, HORIZONTAL_ALIGNMENT_CENTER)
-	UI.label(root, "Setas + ENTER  ou  mouse", Vector2(0, 698), 12, Color(1, 1, 1, 0.45), 480, HORIZONTAL_ALIGNMENT_CENTER)
+	UI.label(root, "Carro: %s" % car["name"], Vector2(0, _menu_bottom + 8), 14, Color(1, 1, 1, 0.75), 480, HORIZONTAL_ALIGNMENT_CENTER)
+	UI.label(root, "Setas + ENTER  ou  mouse  •  F11 tela cheia", Vector2(0, 698), 12, Color(1, 1, 1, 0.45), 480, HORIZONTAL_ALIGNMENT_CENTER)
 
 	if SaveManager.just_reset:
 		SaveManager.just_reset = false
@@ -141,7 +157,7 @@ func _draw_back(ci: Control) -> void:
 	# escurece o topo para o logo aparecer
 	for i in range(30):
 		ci.draw_rect(Rect2(0, i * 10, 480, 10), Color(0.02, 0.02, 0.05, 0.8 * (1.0 - i / 30.0)))
-	ci.draw_rect(Rect2(100, 272, 280, 356), Color(0, 0, 0, 0.25))
+	ci.draw_rect(Rect2(100, 268, 280, _menu_bottom - 268), Color(0, 0, 0, 0.25))
 
 	UI.draw_rank_badge(ci, Vector2(32, 34), 18, GameManager.rank_index(SaveManager.total_km()))
 	UI.draw_coin(ci, Vector2(462 - UI.font().get_string_size(str(SaveManager.coins()), HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x - 16, 34), 11)

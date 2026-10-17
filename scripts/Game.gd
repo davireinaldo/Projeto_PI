@@ -2,7 +2,7 @@ extends Node2D
 
 # A corrida em si: pista, jogador, tráfego, HUD, efeitos, pausa e game over.
 # Também cuida do raspão/combo, dos obstáculos de cada cenário, do clima,
-# do dia e noite e dos avisos de missão completa.
+# do dia e noite, dos avisos de missão completa e do tutorial da 1ª corrida.
 
 const World := preload("res://scripts/World.gd")
 const Player := preload("res://scripts/Player.gd")
@@ -17,6 +17,16 @@ const DrawHook := preload("res://scripts/DrawHook.gd")
 
 # tempo até um veículo na sua faixa bater: abaixo disso, desviar é "raspão"
 const NEAR_MISS_TIME := 0.5
+
+# tutorial da primeira corrida: [título, texto]
+const TUTORIAL := [
+	["TROQUE DE FAIXA", "Setas ou A/D no teclado.
+No celular: deslize o dedo ou toque nos lados."],
+	["RASPÃO = PONTOS", "Desvie em cima da hora de quem vem na sua faixa.
+Raspões seguidos sobem o combo!"],
+	["MOEDAS E PODERES", "Moedas compram carros na Garagem
+e melhorias na Oficina. Boa corrida!"],
+]
 
 var world: Node2D
 var entities: Node2D
@@ -44,6 +54,9 @@ var _splash: float = 0.0 # gotas na tela depois da poça
 var _notified: Array = [] # missões já avisadas nesta corrida
 var _mission_check: float = 0.0
 var _toasts: int = 0
+var _tutorial_step: int = -1 # -1 = sem tutorial
+var _tutorial_box: Panel
+var _tutorial_steers: int = 0
 
 func _ready() -> void:
 	# a cena roda sempre (para a pausa funcionar); o mundo para quando pausado
@@ -68,6 +81,7 @@ func _ready() -> void:
 	player.coin_picked.connect(_on_coin)
 	player.power_picked.connect(_on_power)
 	player.hazard_hit.connect(_on_hazard)
+	player.steered.connect(_on_steered)
 
 	spawner = Spawner.new()
 	spawner.container = entities
@@ -100,6 +114,9 @@ func _ready() -> void:
 	_build_overlay()
 	_build_hud()
 	_show_banner(world.current_biome())
+	if int(SaveManager.data["runs"]) == 0 and not SaveManager.data["tutorial_done"] 			and not GameManager.turn_mode and not GameManager.debug_autopilot:
+		spawner.set_process(false) # sem tráfego até aprender a trocar de faixa
+		_tutorial_next()
 	AudioManager.play_music("race")
 	AudioManager.engine_start()
 
@@ -162,6 +179,8 @@ func _near_miss(t: Node2D) -> void:
 	_punch(combo_label, 1.5)
 	if combo % 5 == 0:
 		flash(col, 0.18, 0.3)
+	if _tutorial_step == 1:
+		_tutorial_next()
 
 func _combo_color(c: int) -> Color:
 	if c >= 8:
@@ -260,11 +279,11 @@ func _on_power(p: Area2D) -> void:
 	GameManager.run_stats["powers"] += 1
 	match p.kind:
 		"escudo":
-			GameManager.activate_shield(5.0)
+			GameManager.activate_shield(GameManager.power_duration("escudo"))
 			FX.burst(entities, pos, col, 36, 280.0, 0.6, 4.0)
 			FX.float_text(entities, pos + Vector2(0, -30), "ESCUDO!", col)
 		"lentidao":
-			GameManager.activate_slow_mo(4.0)
+			GameManager.activate_slow_mo(GameManager.power_duration("lentidao"))
 			FX.burst(entities, pos, col, 36, 280.0, 0.6, 4.0)
 			FX.float_text(entities, pos + Vector2(0, -30), "CÂMERA LENTA", col)
 		"pontos":
@@ -274,17 +293,17 @@ func _on_power(p: Area2D) -> void:
 			FX.burst(entities, pos, Color(1, 1, 0.8), 20, 160.0, 0.5, 3.0)
 			FX.float_text(entities, pos + Vector2(0, -30), "+%d" % bonus, col, 32)
 		"nitro":
-			GameManager.activate_nitro(3.5)
+			GameManager.activate_nitro(GameManager.power_duration("nitro"))
 			FX.burst(entities, pos, col, 40, 320.0, 0.6, 5.0)
 			FX.burst(entities, player.position + Vector2(0, 30), Color(1, 0.9, 0.4), 30, 260.0, 0.5, 4.0, 500.0)
 			FX.float_text(entities, pos + Vector2(0, -30), "NITRO!", col, 30)
 			shake(10.0)
 		"ima":
-			GameManager.activate_magnet(8.0)
+			GameManager.activate_magnet(GameManager.power_duration("ima"))
 			FX.burst(entities, pos, col, 36, 280.0, 0.6, 4.0)
 			FX.float_text(entities, pos + Vector2(0, -30), "ÍMÃ!", col)
 		"moedas2":
-			GameManager.activate_x2(10.0)
+			GameManager.activate_x2(GameManager.power_duration("moedas2"))
 			FX.burst(entities, pos, col, 36, 280.0, 0.6, 4.0)
 			FX.burst(entities, pos, UI.GOLD, 16, 200.0, 0.5, 3.0)
 			FX.float_text(entities, pos + Vector2(0, -30), "MOEDAS x2!", col)
@@ -308,6 +327,8 @@ func _on_storm_survived() -> void:
 	FX.float_text(entities, Vector2(240, 300), "PASSOU A TEMPESTADE!", Color(1, 0.85, 0.55), 22)
 
 func _on_game_over() -> void:
+	if _tutorial_step >= 0:
+		_tutorial_end()
 	AudioManager.play("crash")
 	AudioManager.engine_stop()
 	AudioManager.stop_music(0.3)
@@ -322,6 +343,49 @@ func _on_game_over() -> void:
 func _on_biome_changed(index: int) -> void:
 	AudioManager.play("biome", 0.0, 0.0)
 	_show_banner(index)
+
+# ---------- tutorial ----------
+
+# Passo 1 espera o jogador trocar de faixa 2 vezes; o 2 acaba no primeiro
+# raspão (ou sozinho depois de uns segundos); o 3 some sozinho.
+func _tutorial_next() -> void:
+	_tutorial_step += 1
+	if _tutorial_box:
+		var old := _tutorial_box
+		create_tween().tween_property(old, "modulate:a", 0.0, 0.25).finished.connect(old.queue_free)
+		_tutorial_box = null
+	if _tutorial_step >= TUTORIAL.size():
+		_tutorial_end()
+		return
+	var d: Array = TUTORIAL[_tutorial_step]
+	_tutorial_box = UI.panel(hud, Rect2(30, 410, 420, 92), Color(0.05, 0.06, 0.1, 0.88), UI.ACCENT)
+	UI.label(_tutorial_box, "%d/%d   %s" % [_tutorial_step + 1, TUTORIAL.size(), d[0]], Vector2(0, 10), 20, UI.ACCENT, 420, HORIZONTAL_ALIGNMENT_CENTER)
+	UI.label(_tutorial_box, d[1], Vector2(0, 42), 14, Color.WHITE, 420, HORIZONTAL_ALIGNMENT_CENTER)
+	_tutorial_box.modulate.a = 0.0
+	create_tween().tween_property(_tutorial_box, "modulate:a", 1.0, 0.3)
+	if _tutorial_step > 0:
+		var step := _tutorial_step
+		get_tree().create_timer(7.0 if step == 1 else 5.0, false).timeout.connect(func():
+			if _tutorial_step == step:
+				_tutorial_next())
+
+func _on_steered() -> void:
+	if _tutorial_step != 0:
+		return
+	_tutorial_steers += 1
+	if _tutorial_steers >= 2:
+		FX.float_text(entities, player.position + Vector2(0, -60), "ISSO!", UI.ACCENT, 24)
+		spawner.set_process(true)
+		_tutorial_next()
+
+func _tutorial_end() -> void:
+	_tutorial_step = -1
+	spawner.set_process(true)
+	if _tutorial_box:
+		_tutorial_box.queue_free()
+		_tutorial_box = null
+	SaveManager.data["tutorial_done"] = true
+	SaveManager.save()
 
 # ---------- missões ----------
 

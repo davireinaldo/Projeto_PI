@@ -115,6 +115,13 @@ static func chain_vertical(buttons: Array) -> void:
 		b.focus_neighbor_left = b.get_path_to(b)
 		b.focus_neighbor_right = b.get_path_to(b)
 
+static func is_fullscreen() -> bool:
+	return DisplayServer.window_get_mode() in [DisplayServer.WINDOW_MODE_FULLSCREEN, DisplayServer.WINDOW_MODE_EXCLUSIVE_FULLSCREEN]
+
+# Liga/desliga a tela cheia (no navegador também; precisa vir de um clique ou tecla).
+static func toggle_fullscreen() -> void:
+	DisplayServer.window_set_mode(DisplayServer.WINDOW_MODE_WINDOWED if is_fullscreen() else DisplayServer.WINDOW_MODE_FULLSCREEN)
+
 static func go(tree: SceneTree, scene: String) -> void:
 	tree.paused = false
 	GameManager.stop_run()

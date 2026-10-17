@@ -4,6 +4,7 @@ extends Node
 # carros, cenários, patentes e o estado da corrida em andamento.
 
 const Missions := preload("res://scripts/Missions.gd")
+const UI := preload("res://scripts/UIKit.gd")
 
 # ---------- Carros ----------
 # lane_speed   -> rapidez da troca de faixa
@@ -37,6 +38,18 @@ var cars: Array = [
 	{"id": "zero", "name": "ZERO", "model": "legend", "color": Color(0.07, 0.09, 0.14), "accent": Color(0.1, 1.0, 0.9),
 	 "price": 1, "desc": "O lendário. Escudo, vida extra,\nímã e moedas em dobro.",
 	 "lane_speed": 16.0, "start_shield": 4.0, "lives": 1, "coin_mult": 2.0, "score_mult": 1.5, "magnet": 150.0},
+]
+
+# ---------- Oficina ----------
+# Melhorias permanentes compradas com moedas: cada nível faz o poder
+# durar "step" segundos a mais. O preço de cada nível está em UPGRADE_PRICES.
+const UPGRADE_PRICES := [150, 300, 600, 1000, 1600]
+var upgrades: Array = [
+	{"id": "escudo", "base": 5.0, "step": 1.0},
+	{"id": "lentidao", "base": 4.0, "step": 0.8},
+	{"id": "nitro", "base": 3.5, "step": 0.6},
+	{"id": "ima", "base": 8.0, "step": 1.5},
+	{"id": "moedas2", "base": 10.0, "step": 2.0},
 ]
 
 # ---------- Cenários ----------
@@ -169,6 +182,11 @@ func _ready() -> void:
 		elif arg.begins_with("--start-km="):
 			debug_start_m = arg.split("=")[1].to_float() * 1000.0
 
+# F11: tela cheia em qualquer tela
+func _input(event: InputEvent) -> void:
+	if event is InputEventKey and event.pressed and not event.echo and event.physical_keycode == KEY_F11:
+		UI.toggle_fullscreen()
+
 func _setup_input() -> void:
 	var extra := {"steer_left": [KEY_LEFT, KEY_A], "steer_right": [KEY_RIGHT, KEY_D]}
 	for action in extra.keys():
@@ -210,6 +228,26 @@ func turn_car_id(player_name: String) -> String:
 func set_turn_car(player_name: String, car_id: String) -> void:
 	SaveManager.data["turn_cars"][player_name] = car_id
 	SaveManager.save()
+
+# ---------- oficina ----------
+
+func upgrade_def(id: String) -> Dictionary:
+	for u in upgrades:
+		if u["id"] == id:
+			return u
+	return {}
+
+# Segundos que o poder dura com o nível que o jogador tem (ou "level").
+func power_duration(id: String, level: int = -1) -> float:
+	var u := upgrade_def(id)
+	if level < 0:
+		level = SaveManager.upgrade_level(id)
+	return float(u["base"]) + float(u["step"]) * level
+
+# Preço do próximo nível (0 = já está no máximo).
+func upgrade_price(id: String) -> int:
+	var level := SaveManager.upgrade_level(id)
+	return UPGRADE_PRICES[level] if level < UPGRADE_PRICES.size() else 0
 
 # ---------- cenários ----------
 
@@ -452,6 +490,7 @@ func _finish_run() -> void:
 	var player_name := current_player() if turn_mode else ""
 	var top_pos := SaveManager.register_run(car["id"], km, final_score, collected + bonus, player_name)
 	var new_km := SaveManager.total_km()
+	OnlineRanking.submit_best()
 	if turn_mode:
 		turn_results.append({"name": player_name, "km": km, "score": final_score, "car": car["id"]})
 		SaveManager.register_coop(player_name, car["id"], km, final_score)

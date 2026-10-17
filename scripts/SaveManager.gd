@@ -113,6 +113,12 @@ func _defaults() -> Dictionary:
 		"coop_top": [], # top 10 do modo por turnos, por distância
 		"missions": [], # missões ativas (ver Missions.gd)
 		"missions_done": 0,
+		"upgrades": {}, # nível de cada melhoria da Oficina
+		"tutorial_done": false,
+		"online_id": "", # identificação no ranking online (ver OnlineRanking.gd)
+		"online_name": "",
+		"online_sent": 0, # último recorde enviado
+		"online_sent_name": "",
 		"music_on": true,
 		"sfx_on": true
 	}
@@ -157,6 +163,17 @@ func buy(car_id: String, price: int) -> bool:
 		return false
 	data["coins"] = coins() - price
 	data["owned"].append(car_id)
+	save()
+	return true
+
+func upgrade_level(id: String) -> int:
+	return int(data["upgrades"].get(id, 0))
+
+func buy_upgrade(id: String, price: int) -> bool:
+	if price <= 0 or coins() < price:
+		return false
+	data["coins"] = coins() - price
+	data["upgrades"][id] = upgrade_level(id) + 1
 	save()
 	return true
 

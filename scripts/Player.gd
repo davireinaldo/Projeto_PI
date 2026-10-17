@@ -1,7 +1,8 @@
 extends Area2D
 
-# Carro do jogador: troca entre 3 faixas (setas, A/D ou clique/toque na
-# metade esquerda/direita da tela), com transição suave e inclinação.
+# Carro do jogador: troca entre 3 faixas (setas, A/D, deslizar o dedo/mouse
+# para o lado ou tocar na metade esquerda/direita da tela), com transição
+# suave e inclinação.
 # Os atributos vêm do carro selecionado na garagem.
 
 const CarVisual := preload("res://scripts/CarVisual.gd")
@@ -11,6 +12,10 @@ signal crashed(other: Area2D)
 signal coin_picked(coin: Area2D)
 signal power_picked(power: Area2D)
 signal hazard_hit(obstacle: Area2D)
+signal steered
+
+# quanto o dedo precisa andar na horizontal para contar como "deslizar"
+const SWIPE_MIN := 40.0
 
 var lane: int = 1
 var lane_speed: float = 10.0
@@ -18,6 +23,8 @@ var car: Dictionary
 var visual: Node2D
 var history: Array = [] # posições x recentes (rastro da câmera lenta)
 var ice_time: float = 0.0 # no gelo a troca de faixa fica lenta e o carro derrapa
+var _touch_start: Variant = null # onde o dedo/mouse encostou (null = solto)
+var _swiped: bool = false
 var _t: float = 0.0
 
 func _ready() -> void:
@@ -84,13 +91,30 @@ func _steer(dir: int) -> void:
 	var new_lane: int = clamp(lane + dir, 0, 2)
 	if new_lane != lane:
 		AudioManager.play("whoosh", -4.0, 0.12)
+		steered.emit()
 	lane = new_lane
 
+# Deslizar troca de faixa assim que o dedo anda SWIPE_MIN (dá para deslizar
+# de novo sem soltar). Um toque rápido, sem deslizar, vale o lado da tela.
+# O toque do celular chega aqui como mouse (emulação padrão do Godot).
 func _unhandled_input(event: InputEvent) -> void:
 	if GameManager.game_over or get_tree().paused:
+		_touch_start = null
 		return
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		_steer(-1 if event.position.x < get_viewport_rect().size.x * 0.5 else 1)
+	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			_touch_start = event.position
+			_swiped = false
+		elif _touch_start != null:
+			if not _swiped:
+				_steer(-1 if event.position.x < get_viewport_rect().size.x * 0.5 else 1)
+			_touch_start = null
+	elif event is InputEventMouseMotion and _touch_start != null:
+		var dx: float = event.position.x - _touch_start.x
+		if abs(dx) >= SWIPE_MIN:
+			_steer(1 if dx > 0.0 else -1)
+			_swiped = true
+			_touch_start = event.position
 
 # Chamado pelo próprio obstáculo quando encosta no carro.
 func hit_obstacle(o: Area2D) -> void:

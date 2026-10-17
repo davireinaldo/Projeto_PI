@@ -9,13 +9,17 @@ COMO ABRIR
 CONTROLES
 ---------
 - Setas ESQUERDA/DIREITA ou A/D: trocar de faixa
-- Clique/toque na metade esquerda/direita da tela: trocar de faixa
+- Deslizar o dedo (ou arrastar o mouse) para o lado: trocar de faixa
+- Toque/clique rápido na metade esquerda/direita da tela: trocar de faixa
+- F11 ou botão TELA CHEIA no menu: tela cheia
 - ESC: pausa (na corrida) / voltar (nas outras telas)
 - Menus: setas + ENTER, ou mouse
 
 TELAS
 -----
 Menu (pista rolando com tráfego e rivais) -> Garagem -> Corrida -> Game Over
+Na primeira corrida aparece um tutorial rápido (trocar de faixa, raspão,
+moedas e poderes); o tráfego só começa depois de trocar de faixa 2 vezes.
 Também tem Ranking (patente + top 10) e Estatísticas (KM global e por carro).
 
 MODO POR TURNOS
@@ -43,7 +47,15 @@ Os desenhos de cada modelo ficam em scripts/CarVisual.gd.
 MOEDAS
 ------
 Moedas aparecem em fileiras na pista. Ao final de cada corrida você ganha
-um bônus pela distância e pelos pontos. Gaste na Garagem.
+um bônus pela distância e pelos pontos. Gaste na Garagem (carros) e na
+Oficina (melhorias).
+
+OFICINA (Menu -> OFICINA)
+-------------------------
+Melhorias permanentes: cada nível faz um poder durar mais.
+5 níveis por poder: 150, 300, 600, 1000 e 1600 moedas.
+Escudo +1s · Câmera lenta +0,8s · Nitro +0,6s · Ímã +1,5s · Moedas x2 +2s
+Valores em scripts/GameManager.gd ("upgrades"); tela em scripts/Upgrades.gd.
 
 CENÁRIOS (a cada 2 km, com transição suave)
 -------------------------------------------
@@ -112,6 +124,34 @@ SOM E MÚSICA
   O script cria os .wav em assets/audio/. A parte do jogo fica em
   scripts/AudioManager.gd.
 
+RANKING ONLINE (aba ONLINE no Ranking)
+--------------------------------------
+Top 10 mundial pelos pontos. Cada jogador coloca o nome na aba ONLINE e o
+recorde dele é enviado sozinho. Usa o Supabase (grátis). Para ligar:
+1. Crie uma conta e um projeto em https://supabase.com
+2. No projeto, abra "SQL Editor", cole isto e clique em Run:
+
+   create table scores (
+     id text primary key,
+     name text not null check (char_length(name) between 1 and 12),
+     score int not null check (score between 0 and 10000000),
+     km real not null,
+     car text
+   );
+   alter table scores enable row level security;
+   create policy "ler" on scores for select using (true);
+   create policy "inserir" on scores for insert with check (true);
+   create policy "atualizar" on scores for update using (true);
+
+3. Em "Project Settings -> API" (ou "API Keys") copie a Project URL e a
+   chave pública (anon / publishable) e cole em scripts/OnlineRanking.gd:
+     const SUPABASE_URL := "https://xxxx.supabase.co"
+     const SUPABASE_KEY := "a chave pública"
+4. Exporte o jogo de novo.
+Sem isso o jogo funciona normal, só com o ranking local.
+Obs.: a chave pública fica dentro do jogo; dá para alguém mandar uma
+pontuação falsa. Para um projeto escolar não tem problema.
+
 SAVE
 ----
 Tudo fica salvo em user://zero_impact_save.json
@@ -134,6 +174,8 @@ scripts/Spawner.gd ...... cria tráfego, moedas e poderes
 scripts/Player.gd / PlayerFX.gd .. carro do jogador e efeitos
 scripts/FX.gd, UIKit.gd, DrawHook.gd .. efeitos e interface
 scripts/AudioManager.gd . música, efeitos sonoros e motor
+scripts/Upgrades.gd ..... tela da Oficina
+scripts/OnlineRanking.gd  ranking online (Supabase)
 tools/gerar_sons.py ..... gera os arquivos de áudio
 
 TESTE (opcional)
