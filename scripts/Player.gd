@@ -10,15 +10,18 @@ const PlayerFX := preload("res://scripts/PlayerFX.gd")
 signal crashed(other: Area2D)
 signal coin_picked(coin: Area2D)
 signal power_picked(power: Area2D)
+signal hazard_hit(obstacle: Area2D)
 
 var lane: int = 1
 var lane_speed: float = 10.0
 var car: Dictionary
 var visual: Node2D
 var history: Array = [] # posições x recentes (rastro da câmera lenta)
+var ice_time: float = 0.0 # no gelo a troca de faixa fica lenta e o carro derrapa
 var _t: float = 0.0
 
 func _ready() -> void:
+	add_to_group("player")
 	car = GameManager.selected_car()
 	lane_speed = car["lane_speed"]
 	position = Vector2(GameManager.LANES[lane], GameManager.PLAYER_Y)
@@ -36,6 +39,7 @@ func _ready() -> void:
 	var bubble := PlayerFX.new()
 	bubble.player = self
 	bubble.mode = "bubble"
+	bubble.z_index = 16 # o escudo brilha por cima da escuridão da noite
 	add_child(bubble)
 
 	var shape := RectangleShape2D.new()
@@ -59,8 +63,14 @@ func _process(delta: float) -> void:
 
 	var target_x: float = GameManager.LANES[lane]
 	var diff: float = target_x - position.x
-	position.x += diff * clamp(delta * lane_speed, 0.0, 1.0)
-	rotation = lerp(rotation, clamp(diff * 0.012, -0.25, 0.25), 0.25)
+	var ls := lane_speed
+	var wobble := 0.0
+	if ice_time > 0.0:
+		ice_time -= delta
+		ls *= 0.3
+		wobble = sin(_t * 14.0) * 0.12 * clamp(ice_time, 0.0, 1.0)
+	position.x += diff * clamp(delta * ls, 0.0, 1.0)
+	rotation = lerp(rotation, clamp(diff * 0.012, -0.25, 0.25) + wobble, 0.25)
 	GameManager.player_pos = position
 
 	history.push_front(position.x)
@@ -82,8 +92,23 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		_steer(-1 if event.position.x < get_viewport_rect().size.x * 0.5 else 1)
 
-func _on_area_entered(a: Area2D) -> void:
+# Chamado pelo próprio obstáculo quando encosta no carro.
+func hit_obstacle(o: Area2D) -> void:
 	if GameManager.game_over:
+		return
+	if o.is_solid():
+		crashed.emit(o)
+	else:
+		hazard_hit.emit(o)
+
+# pulinho do carro ao passar num buraco
+func bump() -> void:
+	var tw := create_tween()
+	tw.tween_property(visual, "scale", Vector2(1.12, 1.12), 0.08)
+	tw.tween_property(visual, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+
+func _on_area_entered(a: Area2D) -> void:
+	if GameManager.game_over or a.is_in_group("obstacles"):
 		return
 	if a.is_in_group("traffic"):
 		crashed.emit(a)

@@ -6,6 +6,8 @@ extends Node2D
 
 const World := preload("res://scripts/World.gd")
 const Spawner := preload("res://scripts/Spawner.gd")
+const Weather := preload("res://scripts/Weather.gd")
+const Lighting := preload("res://scripts/Lighting.gd")
 const CarVisual := preload("res://scripts/CarVisual.gd")
 const UI := preload("res://scripts/UIKit.gd")
 const DrawHook := preload("res://scripts/DrawHook.gd")
@@ -29,6 +31,7 @@ func _ready() -> void:
 
 	world = World.new()
 	world.follow_game = false
+	world.day_night = true
 	world.distance_scale = 5.0
 	world.distance_m = randi_range(0, GameManager.biomes.size() - 1) * GameManager.BIOME_LENGTH + 200.0
 	add_child(world)
@@ -46,6 +49,14 @@ func _ready() -> void:
 	hero.setup(car["model"], car["color"], car["accent"])
 	hero.position = Vector2(GameManager.LANES[1], 655)
 	add_child(hero)
+
+	var weather := Weather.new()
+	weather.world = world
+	add_child(weather)
+	var lighting := Lighting.new()
+	lighting.world = world
+	lighting.hero = hero
+	add_child(lighting)
 
 	_build_ui()
 
@@ -87,13 +98,14 @@ func _build_ui() -> void:
 	var x := 120.0
 	var w := 240.0
 	var buttons := [
-		UI.button(root, "JOGAR", Rect2(x, 288, w, 52), _play, 26),
-		UI.button(root, "POR TURNOS", Rect2(x, 346, w, 40), func(): UI.go(get_tree(), "res://scenes/Turns.tscn")),
-		UI.button(root, "GARAGEM", Rect2(x, 392, w, 40), func(): UI.go(get_tree(), "res://scenes/Garage.tscn")),
-		UI.button(root, "RANKING", Rect2(x, 438, w, 40), func(): UI.go(get_tree(), "res://scenes/Ranking.tscn")),
-		UI.button(root, "ESTATÍSTICAS", Rect2(x, 484, w, 40), func(): UI.go(get_tree(), "res://scenes/Stats.tscn")),
-		UI.button(root, "CRÉDITOS", Rect2(x, 530, w, 40), func(): UI.go(get_tree(), "res://scenes/Credits.tscn")),
-		UI.button(root, "SAIR", Rect2(x, 576, w, 40), func(): get_tree().quit()),
+		UI.button(root, "JOGAR", Rect2(x, 282, w, 50), _play, 26),
+		UI.button(root, "POR TURNOS", Rect2(x, 338, w, 36), func(): UI.go(get_tree(), "res://scenes/Turns.tscn")),
+		UI.button(root, "MISSÕES", Rect2(x, 379, w, 36), func(): UI.go(get_tree(), "res://scenes/Missions.tscn")),
+		UI.button(root, "GARAGEM", Rect2(x, 420, w, 36), func(): UI.go(get_tree(), "res://scenes/Garage.tscn")),
+		UI.button(root, "RANKING", Rect2(x, 461, w, 36), func(): UI.go(get_tree(), "res://scenes/Ranking.tscn")),
+		UI.button(root, "ESTATÍSTICAS", Rect2(x, 502, w, 36), func(): UI.go(get_tree(), "res://scenes/Stats.tscn")),
+		UI.button(root, "CRÉDITOS", Rect2(x, 543, w, 36), func(): UI.go(get_tree(), "res://scenes/Credits.tscn")),
+		UI.button(root, "SAIR", Rect2(x, 584, w, 36), func(): get_tree().quit()),
 	]
 	buttons[0].add_theme_stylebox_override("normal", UI.style(Color(0.05, 0.3, 0.32, 0.9), UI.ACCENT, 10, 2))
 
@@ -129,7 +141,7 @@ func _draw_back(ci: Control) -> void:
 	# escurece o topo para o logo aparecer
 	for i in range(30):
 		ci.draw_rect(Rect2(0, i * 10, 480, 10), Color(0.02, 0.02, 0.05, 0.8 * (1.0 - i / 30.0)))
-	ci.draw_rect(Rect2(100, 278, 280, 346), Color(0, 0, 0, 0.25))
+	ci.draw_rect(Rect2(100, 272, 280, 356), Color(0, 0, 0, 0.25))
 
 	UI.draw_rank_badge(ci, Vector2(32, 34), 18, GameManager.rank_index(SaveManager.total_km()))
 	UI.draw_coin(ci, Vector2(462 - UI.font().get_string_size(str(SaveManager.coins()), HORIZONTAL_ALIGNMENT_LEFT, -1, 22).x - 16, 34), 11)

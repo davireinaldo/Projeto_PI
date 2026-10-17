@@ -1,1 +1,6 @@
+# Godot
 .godot/
+
+# builds (gerados pelo export)
+build_web/
+*.zip

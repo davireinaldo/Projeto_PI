@@ -27,6 +27,15 @@ const SFX := {
 	"ui_buy": preload("res://assets/audio/sfx/ui_buy.wav"),
 	"ui_error": preload("res://assets/audio/sfx/ui_error.wav"),
 	"horn": preload("res://assets/audio/sfx/horn.wav"),
+	"near_miss": preload("res://assets/audio/sfx/near_miss.wav"),
+	"power_nitro": preload("res://assets/audio/sfx/power_nitro.wav"),
+	"power_magnet": preload("res://assets/audio/sfx/power_magnet.wav"),
+	"power_x2": preload("res://assets/audio/sfx/power_x2.wav"),
+	"mission": preload("res://assets/audio/sfx/mission.wav"),
+	"bump": preload("res://assets/audio/sfx/bump.wav"),
+	"splash": preload("res://assets/audio/sfx/splash.wav"),
+	"ice": preload("res://assets/audio/sfx/ice.wav"),
+	"storm": preload("res://assets/audio/sfx/storm.wav"),
 }
 const ENGINE := preload("res://assets/audio/sfx/engine.wav")
 
@@ -132,14 +141,14 @@ func stop_music(fade: float = 0.5) -> void:
 
 # ---------- efeitos ----------
 
-func play(key: String, volume_db: float = 0.0, pitch_var: float = 0.05) -> void:
+func play(key: String, volume_db: float = 0.0, pitch_var: float = 0.05, pitch: float = 1.0) -> void:
 	if key.begins_with("ui_") and Time.get_ticks_msec() / 1000.0 < _ui_quiet_until:
 		return
 	var p: AudioStreamPlayer = _pool[_next]
 	_next = (_next + 1) % _pool.size()
 	p.stream = SFX[key]
 	p.volume_db = volume_db
-	p.pitch_scale = 1.0 + randf_range(-pitch_var, pitch_var)
+	p.pitch_scale = pitch + randf_range(-pitch_var, pitch_var)
 	p.play()
 
 # evita o "tique" de foco que acontece sozinho ao abrir uma tela

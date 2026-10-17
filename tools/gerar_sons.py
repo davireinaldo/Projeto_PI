@@ -415,6 +415,81 @@ def sfx():
     save("sfx/engine.wav", x, 0.5, fade=False)
 
 
+def sfx_extra():
+    """Sons dos poderes novos, raspão, obstáculos e missões.
+    Usa um gerador aleatório próprio para não mudar os sons acima."""
+    global rng
+    rng = np.random.default_rng(11)
+
+    # raspão: whoosh rápido + "plim" brilhante (o jogo sobe o tom com o combo)
+    d = 0.35
+    e = np.sin(np.pi * np.clip(tt(d) / 0.18, 0, 1)) ** 2
+    x = lp(noise(d), np.linspace(1500, 5000, n_of(d))) * e * 0.5
+    mix_at(x, osc(hz("A6"), 0.25, "square", 0.25) * expdec(0.25, 0.06) * 0.5, 0.05)
+    mix_at(x, osc(hz("E7"), 0.2) * expdec(0.2, 0.05) * 0.6, 0.09)
+    save("sfx/near_miss.wav", x, 0.5)
+
+    # nitro: rugido subindo
+    d = 1.0
+    f = 80 * 2 ** (tt(d) * 2.2)
+    x = lp(osc(f, d, "saw") + 0.6 * osc(f * 1.01, d, "square", 0.3), 900 + 2500 * tt(d))
+    x += lp(noise(d), 1200 + 3000 * tt(d)) * 0.7
+    save("sfx/power_nitro.wav", x * adsr(n_of(d), 0.02, 0.2, 0.9, 0.35), 0.6)
+
+    # ímã: "uóm-uóm" subindo
+    d = 0.7
+    f = np.linspace(220, 440, n_of(d))
+    trem = 0.6 + 0.4 * np.sin(2 * np.pi * 10 * tt(d))
+    x = (osc(f, d) + 0.5 * osc(f * 2, d, "tri")) * trem * adsr(n_of(d), 0.01, 0.1, 0.8, 0.25)
+    save("sfx/power_magnet.wav", x, 0.55)
+
+    # moedas x2: duas moedas em arpejo
+    x = np.zeros(n_of(0.6))
+    for i, nt in enumerate(["B5", "E6", "B6", "E7"]):
+        mix_at(x, osc(hz(nt), 0.14, "square", 0.5) * expdec(0.14, 0.05) * 0.6, i * 0.07)
+    save("sfx/power_x2.wav", lp(delay_wrap(x, 0.1, 0.25), 7000), 0.5)
+
+    # missão completa: fanfarra curta
+    x = np.zeros(n_of(1.4))
+    for i, nt in enumerate(["C5", "E5", "G5"]):
+        mix_at(x, pluck(nt, 0.2, 5000) * 0.7, i * 0.09)
+    mix_at(x, lead("C6", 0.5) * 0.6, 0.27)
+    for nt in ["C6", "E6", "G6"]:
+        mix_at(x, bell(nt, 0.9) * 0.35, 0.27)
+    save("sfx/mission.wav", delay_wrap(x, 0.15, 0.25), 0.55)
+
+    # buraco/duna: baque grave + chacoalhada
+    d = 0.4
+    x = osc(55 + 60 * np.exp(-tt(d) / 0.04), d) * expdec(d, 0.1)
+    x += lp(noise(d), 1800) * expdec(d, 0.06) * 0.6
+    save("sfx/bump.wav", x, 0.7)
+
+    # poça: espirro d'água
+    d = 0.6
+    x = lp(noise(d), 2500 * np.exp(-tt(d) / 0.25) + 400) * expdec(d, 0.18)
+    for k in range(5):
+        mix_at(x, osc(900 + 500 * k, 0.05) * expdec(0.05, 0.015) * 0.3, 0.05 + k * 0.06)
+    save("sfx/splash.wav", x, 0.55)
+
+    # gelo: cristais descendo + chiado
+    d = 0.8
+    x = hp(noise(d), 4000) * expdec(d, 0.25) * 0.4
+    for i, nt in enumerate(["E7", "B6", "G6", "E6"]):
+        mix_at(x, bell(nt, 0.5) * 0.4, i * 0.06)
+    save("sfx/ice.wav", x, 0.5)
+
+    # tempestade de areia: rajada de vento
+    d = 2.2
+    gust = np.sin(np.pi * np.clip(tt(d) / d, 0, 1)) ** 1.5 * (0.7 + 0.3 * np.sin(2 * np.pi * 1.7 * tt(d)))
+    x = lp(noise(d), 600 + 900 * gust) * gust
+    save("sfx/storm.wav", x, 0.5)
+
+
 if __name__ == "__main__":
-    sfx()
-    music()
+    import sys
+    if "extra" in sys.argv:  # python tools/gerar_sons.py extra -> só os sons novos
+        sfx_extra()
+    else:
+        sfx()
+        music()
+        sfx_extra()

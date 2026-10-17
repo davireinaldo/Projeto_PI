@@ -24,6 +24,8 @@ var length: float = 64.0
 var rel_speed: float = 0.0
 var changer: bool = false
 var visual: Node2D
+var threat: bool = false # vinha na faixa do jogador (para contar o raspão)
+var passed: bool = false
 
 var _state: int = 0 # 0 normal, 1 seta ligada, 2 trocando, 3 já trocou
 var _target: int = -1
@@ -109,6 +111,9 @@ func _lane_free(l: int, margin: float) -> bool:
 	for o in get_tree().get_nodes_in_group("traffic"):
 		if o == self:
 			continue
+		# obstáculo parado acima: ele vai descer em cima, então a faixa não serve
+		if o.is_in_group("obstacles") and o.occupies_lane(l) and o.position.y < position.y:
+			return false
 		if o.occupies_lane(l) and abs(o.position.y - position.y) < (length + o.length) * 0.5 + margin:
 			return false
 	return true

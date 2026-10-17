@@ -16,9 +16,28 @@ func _draw() -> void:
 	if GameManager.game_over:
 		return
 	if mode == "trail":
+		_draw_nitro()
 		_draw_trail()
 	else:
 		_draw_bubble()
+
+# chamas saindo do escapamento + rastro alaranjado durante o nitro
+func _draw_nitro() -> void:
+	var k: float = clamp((GameManager.nitro_factor - 1.0) / 0.65, 0.0, 1.0)
+	if k <= 0.02:
+		return
+	for i in range(1, player.history.size()):
+		var ox: float = player.history[i] - player.position.x
+		var a: float = 0.3 * k * (1.0 - float(i) / player.history.size())
+		draw_rect(Rect2(Vector2(ox - 13, 10 + i * 12), Vector2(26, 30)), Color(1, 0.45, 0.1, a))
+	for sx in [-8.0, 8.0]:
+		var len := (26.0 + randf() * 18.0) * k
+		var base := Vector2(sx, 30)
+		draw_colored_polygon(PackedVector2Array([base + Vector2(-6, 0), base + Vector2(6, 0), base + Vector2(0, len)]),
+			Color(1, 0.4, 0.05, 0.85))
+		draw_colored_polygon(PackedVector2Array([base + Vector2(-3.5, 0), base + Vector2(3.5, 0), base + Vector2(0, len * 0.6)]),
+			Color(1, 0.9, 0.4, 0.95))
+		draw_circle(base, 7, Color(1, 0.6, 0.1, 0.4))
 
 func _draw_trail() -> void:
 	var strength: float = clamp((1.0 - GameManager.slow_factor) * 2.0, 0.0, 1.0)

@@ -111,6 +111,8 @@ func _defaults() -> Dictionary:
 		"turn_players": [], # últimos nomes usados no modo por turnos
 		"turn_cars": {}, # carro que cada jogador escolheu nos turnos
 		"coop_top": [], # top 10 do modo por turnos, por distância
+		"missions": [], # missões ativas (ver Missions.gd)
+		"missions_done": 0,
 		"music_on": true,
 		"sfx_on": true
 	}

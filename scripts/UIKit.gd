@@ -11,11 +11,16 @@ const PANEL_BG := Color(0.05, 0.06, 0.1, 0.82)
 static var _font: Font
 static var _theme: Theme
 
+# Fonte do jogo: Russo One (assets/fonts, licença OFL), igual em qualquer PC.
+# Símbolos que ela não tem (como a seta →) vêm de uma fonte do sistema.
 static func font() -> Font:
 	if _font == null:
-		var f := SystemFont.new()
-		f.font_names = PackedStringArray(["Bahnschrift", "Segoe UI", "Arial", "Sans-Serif"])
-		f.font_weight = 700
+		var fallback := SystemFont.new()
+		fallback.font_names = PackedStringArray(["Bahnschrift", "Segoe UI", "Arial", "Sans-Serif"])
+		fallback.font_weight = 700
+		var f := FontVariation.new()
+		f.base_font = load("res://assets/fonts/RussoOne-Regular.ttf")
+		f.fallbacks = [fallback]
 		_font = f
 	return _font
 

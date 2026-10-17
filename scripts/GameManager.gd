@@ -3,6 +3,8 @@ extends Node
 # Estado global do ZERO-IMPACT (autoload):
 # carros, cenários, patentes e o estado da corrida em andamento.
 
+const Missions := preload("res://scripts/Missions.gd")
+
 # ---------- Carros ----------
 # lane_speed   -> rapidez da troca de faixa
 # start_shield -> segundos de escudo grátis no começo da corrida
@@ -33,7 +35,7 @@ var cars: Array = [
 	 "price": 3500, "desc": "Agilidade máxima.\n+50% de pontos.",
 	 "lane_speed": 19.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.0, "score_mult": 1.5, "magnet": 0.0},
 	{"id": "zero", "name": "ZERO", "model": "legend", "color": Color(0.07, 0.09, 0.14), "accent": Color(0.1, 1.0, 0.9),
-	 "price": 7000, "desc": "O lendário. Escudo, vida extra,\nímã e moedas em dobro.",
+	 "price": 1, "desc": "O lendário. Escudo, vida extra,\nímã e moedas em dobro.",
 	 "lane_speed": 16.0, "start_shield": 4.0, "lives": 1, "coin_mult": 2.0, "score_mult": 1.5, "magnet": 150.0},
 ]
 
@@ -76,6 +78,11 @@ var biomes: Array = [
 	 "decor_left": ["neon_building", "neon_pole"], "decor_right": ["neon_building", "neon_pole"]},
 ]
 
+# ---------- Dia e noite ----------
+# Um dia inteiro dura DAY_CYCLE metros: dia, pôr do sol, noite e amanhecer.
+# A Cidade Neon é sempre de noite.
+const DAY_CYCLE := 4000.0
+
 # ---------- Patentes (por KM global) ----------
 var ranks: Array = [
 	{"name": "Bronze", "km": 0.0, "color": Color(0.8, 0.5, 0.25)},
@@ -111,8 +118,28 @@ var grace_time: float = 0.0 # invencível depois de perder uma vida
 var slow_time: float = 0.0
 var slow_total: float = 1.0
 var slow_factor: float = 1.0
+var nitro_time: float = 0.0 # nitro: mais rápido e atravessa o tráfego
+var nitro_total: float = 1.0
+var nitro_factor: float = 1.0
+var magnet_time: float = 0.0 # ímã temporário (para qualquer carro)
+var magnet_total: float = 1.0
+var x2_time: float = 0.0 # moedas valem 2
+var x2_total: float = 1.0
 var player_pos: Vector2 = Vector2(240, PLAYER_Y)
 var last_summary: Dictionary = {}
+
+# ---------- Raspão e combo ----------
+# Passar raspando por um veículo que vinha na sua faixa vale pontos.
+# Raspões seguidos (com menos de COMBO_WINDOW s entre eles) sobem o combo.
+const COMBO_WINDOW := 4.0
+const NEAR_MISS_POINTS := 40
+var combo: int = 0
+var combo_time: float = 0.0
+var combo_points: int = 0
+
+# números da corrida atual (usados pelas missões e pelo game over)
+var run_stats: Dictionary = {}
+var _clean_from_m: float = 0.0 # onde começou o trecho atual sem bater
 
 # ---------- Modo por turnos ----------
 # Cada jogador corre uma vez, na sua vez; no fim vence quem foi mais longe.
@@ -130,6 +157,8 @@ signal game_over_triggered
 signal shield_ended(broken: bool)
 signal life_lost
 signal power_collected(kind: String, pos: Vector2)
+signal combo_ended(count: int, points: int)
+signal nitro_ended
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_PAUSABLE
@@ -195,6 +224,34 @@ func biome_state(dist_m: float) -> Array:
 		t = smoothstep(0.0, 1.0, (into - (BIOME_LENGTH - BIOME_BLEND)) / BIOME_BLEND)
 	return [a, b, t]
 
+func biome_id_at(dist_m: float) -> String:
+	var bs := biome_state(dist_m)
+	return biomes[bs[0] if bs[2] < 0.5 else bs[1]]["id"]
+
+# Quanto de cada cenário aparece agora (0..1), considerando a transição.
+func biome_weight(dist_m: float, id: String) -> float:
+	var bs := biome_state(dist_m)
+	var w := 0.0
+	if biomes[bs[0]]["id"] == id:
+		w += 1.0 - bs[2]
+	if biomes[bs[1]]["id"] == id:
+		w += bs[2]
+	return w
+
+# Hora do dia: Vector2(noite 0..1, pôr do sol 0..1)
+func sky(dist_m: float) -> Vector2:
+	var f := fposmod(dist_m, DAY_CYCLE) / DAY_CYCLE
+	var night := 0.0
+	if f > 0.45 and f < 0.55:
+		night = smoothstep(0.45, 0.55, f)
+	elif f >= 0.55 and f < 0.9:
+		night = 1.0
+	elif f >= 0.9:
+		night = 1.0 - smoothstep(0.9, 1.0, f)
+	var dusk: float = max(1.0 - abs(f - 0.47) / 0.07, 0.0) + max(1.0 - abs(f - 0.95) / 0.06, 0.0) * 0.6
+	night = max(night, 0.8 * biome_weight(dist_m, "neon"))
+	return Vector2(night, clamp(dusk, 0.0, 1.0))
+
 # ---------- patentes ----------
 
 func rank_index(km: float) -> int:
@@ -229,6 +286,16 @@ func start_run() -> void:
 	grace_time = 0.0
 	slow_time = 0.0
 	slow_factor = 1.0
+	nitro_time = 0.0
+	nitro_factor = 1.0
+	magnet_time = 0.0
+	x2_time = 0.0
+	combo = 0
+	combo_time = 0.0
+	combo_points = 0
+	_clean_from_m = distance_m
+	run_stats = {"near_miss": 0, "max_combo": 0, "coins": 0, "powers": 0, "nitro": 0,
+		"dodged": 0, "storms": 0, "smashed": 0, "clean_km": 0.0, "km": 0.0}
 	if car["start_shield"] > 0.0:
 		activate_shield(car["start_shield"])
 
@@ -245,11 +312,19 @@ func _process(delta: float) -> void:
 
 	var target_factor := 0.5 if slow_time > 0.0 else 1.0
 	slow_factor = move_toward(slow_factor, target_factor, delta * 1.5)
-	speed = cruise_speed * slow_factor
+	nitro_factor = move_toward(nitro_factor, 1.65 if nitro_time > 0.0 else 1.0, delta * 2.5)
+	speed = cruise_speed * slow_factor * nitro_factor
 
 	distance_m += speed * delta / PX_PER_METER
 	var car := selected_car()
 	score += delta * (10.0 + speed * 0.02) * float(car["score_mult"])
+	run_stats["km"] = (distance_m - debug_start_m) / 1000.0
+	run_stats["clean_km"] = max(float(run_stats["clean_km"]), (distance_m - _clean_from_m) / 1000.0)
+
+	if combo > 0:
+		combo_time -= delta
+		if combo_time <= 0.0:
+			end_combo()
 
 	if shield_time > 0.0:
 		shield_time -= delta
@@ -260,12 +335,20 @@ func _process(delta: float) -> void:
 		grace_time -= delta
 	if slow_time > 0.0:
 		slow_time = max(slow_time - delta, 0.0)
+	if nitro_time > 0.0:
+		nitro_time -= delta
+		if nitro_time <= 0.0:
+			nitro_time = 0.0
+			grace_time = max(grace_time, 0.8) # um respiro para sair do meio do tráfego
+			nitro_ended.emit()
+	magnet_time = max(magnet_time - delta, 0.0)
+	x2_time = max(x2_time - delta, 0.0)
 
 func speed_kmh() -> int:
 	return int(speed * 0.36)
 
 func is_protected() -> bool:
-	return shield_time > 0.0 or grace_time > 0.0
+	return shield_time > 0.0 or grace_time > 0.0 or nitro_time > 0.0
 
 func activate_shield(duration: float) -> void:
 	shield_time = max(shield_time, duration)
@@ -275,12 +358,68 @@ func activate_slow_mo(duration: float) -> void:
 	slow_time = max(slow_time, duration)
 	slow_total = slow_time
 
-func add_coin() -> void:
-	coins_run += 1
+func activate_nitro(duration: float) -> void:
+	nitro_time = max(nitro_time, duration)
+	nitro_total = nitro_time
+	run_stats["nitro"] += 1
+
+func activate_magnet(duration: float) -> void:
+	magnet_time = max(magnet_time, duration)
+	magnet_total = magnet_time
+
+func activate_x2(duration: float) -> void:
+	x2_time = max(x2_time, duration)
+	x2_total = x2_time
+
+# raio do ímã agora (o do carro ou o do poder, o que for maior)
+func magnet_radius() -> float:
+	if not running:
+		return 0.0
+	var r := float(selected_car()["magnet"])
+	if magnet_time > 0.0:
+		r = max(r, 190.0)
+	return r
+
+# Devolve quantas moedas a moeda valeu.
+func add_coin() -> int:
+	var v := 2 if x2_time > 0.0 else 1
+	coins_run += v
+	run_stats["coins"] += v
+	return v
+
+# Raspão: sobe o combo e devolve os pontos ganhos.
+func near_miss(obstacle: bool) -> int:
+	combo += 1
+	combo_time = COMBO_WINDOW
+	var pts := int(NEAR_MISS_POINTS * combo * float(selected_car()["score_mult"]))
+	combo_points += pts
+	score += pts
+	run_stats["near_miss"] += 1
+	run_stats["max_combo"] = max(int(run_stats["max_combo"]), combo)
+	if obstacle:
+		run_stats["dodged"] += 1
+	return pts
+
+func end_combo() -> void:
+	if combo > 0:
+		combo_ended.emit(combo, combo_points)
+	combo = 0
+	combo_time = 0.0
+	combo_points = 0
+
+# Buraco/duna: perde o combo e um pouco de velocidade.
+func bump() -> void:
+	end_combo()
+	cruise_speed = max(base_speed, cruise_speed * 0.93)
 
 # Chamado quando o jogador bate num veículo.
-# Devolve "shield", "life" ou "dead".
+# Devolve "nitro", "shield", "life" ou "dead".
 func on_crash() -> String:
+	if nitro_time > 0.0:
+		run_stats["smashed"] += 1
+		return "nitro"
+	_clean_from_m = distance_m
+	end_combo()
 	if shield_time > 0.0 or grace_time > 0.0:
 		return "shield"
 	if lives > 0:
@@ -302,6 +441,8 @@ func trigger_game_over() -> void:
 func _finish_run() -> void:
 	var car := selected_car()
 	var km := (distance_m - debug_start_m) / 1000.0
+	run_stats["km"] = km
+	var missions_done := Missions.commit(run_stats)
 	var final_score := int(score)
 	var collected := int(round(coins_run * float(car["coin_mult"])))
 	var bonus := int(round((int(km * 10.0) + int(final_score / 200.0)) * float(car["coin_mult"])))
@@ -325,6 +466,9 @@ func _finish_run() -> void:
 		"old_rank": old_rank,
 		"new_rank": rank_index(new_km),
 		"total_km": new_km,
+		"near_miss": int(run_stats["near_miss"]),
+		"max_combo": int(run_stats["max_combo"]),
+		"missions": missions_done,
 	}
 
 # ---------- turnos ----------

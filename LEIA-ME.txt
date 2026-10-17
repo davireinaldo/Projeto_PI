@@ -50,6 +50,35 @@ CENÁRIOS (a cada 2 km, com transição suave)
 Cidade -> Campo -> Deserto -> Beira-mar -> Montanha nevada -> Cidade neon -> repete
 Cores e decorações: GameManager.gd (array "biomes") e World.gd.
 
+OBSTÁCULOS DE CADA CENÁRIO (a partir de 300 m)
+-----------------------------------------------
+Cidade ...... cones de obra (batem como um carro) e bueiros abertos
+Deserto ..... montes de areia + TEMPESTADE DE AREIA (o topo da tela some
+              na poeira por alguns segundos)
+Beira-mar ... poças d'água (espirram água na tela)
+Montanha .... placas de gelo (a troca de faixa fica lenta)
+Cidade neon . barreiras de energia que ligam e desligam (piscam antes de acender)
+Bueiro/areia: perde o combo e um pouco de velocidade. O campo é tranquilo.
+Arquivo: scripts/Obstacle.gd (quais aparecem onde: Spawner.gd, BIOME_OBSTACLES).
+
+RASPÃO E COMBO
+--------------
+Desviar na última hora de um carro (ou obstáculo) que vinha na sua faixa
+é um RASPÃO: vale 40 pontos x combo. Raspões seguidos, com menos de 4 s
+entre eles, sobem o combo (x2, x3...). Bater ou cair num buraco zera o combo.
+
+MISSÕES
+-------
+Sempre 3 ativas (Menu -> MISSÕES, ou na pausa). Completou: ganha as moedas
+no fim da corrida e entra uma missão nova no lugar. Lista em scripts/Missions.gd.
+
+DIA E NOITE / CLIMA
+-------------------
+Um dia dura 4 km: dia, pôr do sol, noite e amanhecer. A Cidade Neon é
+sempre noite. À noite acendem faróis, lanternas, postes e janelas
+(scripts/Lighting.gd, shader). Chove na cidade, venta areia no deserto e
+neva na montanha (scripts/Weather.gd).
+
 PATENTES (por KM total rodado)
 -----------------------------
 Bronze 0 · Prata 5 · Ouro 15 · Platina 40 · Diamante 80 · Lenda 150 km
@@ -64,6 +93,9 @@ PODERES
 Escudo (ciano) ........ 5s, bolha brilhante; destrói o que bater
 Câmera lenta (roxo) ... 4s, tela arroxeada e rastro do carro
 Estrela (dourado) ..... +100 pontos com chuva de estrelas
+Nitro (laranja) ....... 3,5s muito mais rápido; atravessa e destrói o tráfego
+Ímã (vermelho) ........ 8s puxando as moedas (para qualquer carro)
+Moedas x2 (verde) ..... 10s com cada moeda valendo 2
 
 SOM E MÚSICA
 ------------
@@ -71,10 +103,12 @@ SOM E MÚSICA
   lenta e abaixa na pausa) + jingle de game over.
 - Ronco do motor que sobe de tom com a velocidade.
 - Efeitos: moeda, cada poder, batida, escudo bloqueando, vida perdida,
-  troca de faixa, buzina do tráfego, novo cenário e sons dos menus.
+  troca de faixa, buzina do tráfego, novo cenário, raspão (sobe o tom com
+  o combo), buraco, poça, gelo, tempestade, missão completa e sons dos menus.
 - Ligar/desligar música e efeitos: botões no topo do menu (fica salvo).
 - Tudo é gerado por código, sem samples externos. Para mudar/recriar:
     python tools/gerar_sons.py      (precisa de Python 3 + numpy)
+    python tools/gerar_sons.py extra   (só os sons novos, mais rápido)
   O script cria os .wav em assets/audio/. A parte do jogo fica em
   scripts/AudioManager.gd.
 
@@ -88,8 +122,13 @@ ARQUIVOS
 --------
 scripts/GameManager.gd .. carros, cenários, patentes, estado da corrida
 scripts/SaveManager.gd .. salvar/carregar
-scripts/Menu.gd, Garage.gd, Game.gd, Ranking.gd, Stats.gd .. as telas
-scripts/World.gd ........ pista e cenários
+scripts/Menu.gd, Garage.gd, Game.gd, Ranking.gd, Stats.gd, MissionsScreen.gd .. as telas
+scripts/World.gd ........ pista e cenários (perspectiva, sombras, chão molhado)
+scripts/Weather.gd ...... chuva, areia, tempestade e neve
+scripts/Lighting.gd ..... noite: escuridão + faróis, postes e lanternas
+scripts/Obstacle.gd ..... obstáculos de cada cenário
+scripts/Missions.gd ..... lista e progresso das missões
+assets/fonts ............ fonte Russo One (licença OFL em RussoOne-OFL.txt)
 scripts/Traffic.gd ...... veículos do tráfego
 scripts/Spawner.gd ...... cria tráfego, moedas e poderes
 scripts/Player.gd / PlayerFX.gd .. carro do jogador e efeitos
