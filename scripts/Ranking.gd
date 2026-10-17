@@ -73,6 +73,8 @@ func _ready() -> void:
 		t.focus_neighbor_right = t.get_path_to(tabs[min(i + 1, tabs.size() - 1)])
 	back.focus_neighbor_top = back.get_path_to(tabs[0])
 	OnlineRanking.top_loaded.connect(_on_online_top)
+	# recarrega a lista quando o recorde (ou o nome novo) chega no servidor
+	OnlineRanking.submitted.connect(_on_online_submitted)
 	OnlineRanking.submit_best()
 	_show_top(Tab.GENERAL)
 	back.grab_focus()
@@ -140,8 +142,6 @@ Veja RANKING ONLINE no LEIA-ME.txt.",
 			return
 		OnlineRanking.set_player_name(edit.text)
 		edit.text = OnlineRanking.player_name()
-		# dá um tempinho para o recorde chegar antes de recarregar a lista
-		get_tree().create_timer(1.2).timeout.connect(OnlineRanking.fetch_top)
 	edit.text_submitted.connect(func(_t: String): save_name.call())
 	UI.button(top_box, "SALVAR", Rect2(328, 350, 120, 32), save_name, 14)
 	var hint := "Seu recorde entra aqui automaticamente." if OnlineRanking.player_name() != "" 		else "Coloque seu nome para entrar no ranking mundial."
@@ -153,6 +153,10 @@ Veja RANKING ONLINE no LEIA-ME.txt.",
 	top_box.add_child(online_box)
 	UI.label(online_box, "Carregando...", Vector2(0, 470), 16, Color(0.7, 0.75, 0.85), 480, HORIZONTAL_ALIGNMENT_CENTER)
 	OnlineRanking.fetch_top()
+
+func _on_online_submitted() -> void:
+	if tab == Tab.ONLINE:
+		OnlineRanking.fetch_top()
 
 func _on_online_top(ok: bool, list: Array) -> void:
 	if tab != Tab.ONLINE or not is_instance_valid(online_box):

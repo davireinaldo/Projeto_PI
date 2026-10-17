@@ -17,7 +17,7 @@ func _ready() -> void:
 	load_data()
 
 # ---------- Ctrl+P: resetar progresso (com confirmação) ----------
-# Apaga todo o progresso (mantém só as opções de som) e volta ao menu.
+# Apaga todo o progresso (mantém as opções de som e o nome online) e volta ao menu.
 # Na janela de confirmação: S confirma, N cancela (ou clique nos botões).
 
 var confirming := false
@@ -88,11 +88,12 @@ func _confirm_reset() -> void:
 	get_tree().change_scene_to_file("res://scenes/Menu.tscn")
 
 func reset() -> void:
-	var music: bool = data.get("music_on", true)
-	var sfx: bool = data.get("sfx_on", true)
+	var old := data
 	data = _defaults()
-	data["music_on"] = music
-	data["sfx_on"] = sfx
+	# mantém as opções de som e a identidade no ranking online (senão o
+	# jogador ganharia uma segunda linha lá)
+	for k in ["music_on", "sfx_on", "online_id", "online_name", "online_sent", "online_sent_name"]:
+		data[k] = old.get(k, data[k])
 	save()
 	just_reset = true
 

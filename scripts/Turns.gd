@@ -12,7 +12,7 @@ const UI := preload("res://scripts/UIKit.gd")
 
 const NAME_MAX := 18
 # digitar isto como nome libera todos os carros e melhorias
-const CHEAT := "caitano melhor professor"
+const CHEAT := "caitano o melhor"
 const MEDALS := [Color(1.0, 0.82, 0.2), Color(0.85, 0.87, 0.92), Color(0.85, 0.55, 0.3)]
 
 var root: Control

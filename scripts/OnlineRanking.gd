@@ -8,12 +8,13 @@ extends Node
 # Cada jogador tem uma linha só na tabela (pelo "online_id" salvo no PC),
 # atualizada quando ele bate o próprio recorde ou troca de nome.
 
-const SUPABASE_URL := "" # ex.: "https://abcdefgh.supabase.co"
-const SUPABASE_KEY := "" # a chave pública do projeto (anon / publishable)
+const SUPABASE_URL := "https://ixpbonhwmscfukdabxxw.supabase.co"
+const SUPABASE_KEY := "sb_publishable_xx_ZnZQEgb6zCQvLjSjpRg_qLaCEa3v" # chave pública (pode ficar no jogo)
 const TABLE := "scores"
 const NAME_MAX := 12
 
 signal top_loaded(ok: bool, list: Array)
+signal submitted # recorde ou nome chegou no servidor
 
 var _sending := false
 
@@ -32,38 +33,55 @@ func set_player_name(n: String) -> void:
 	SaveManager.save()
 	submit_best()
 
-# Melhor corrida guardada no PC (o top 10 local já está ordenado por pontos).
+# Melhor corrida solo guardada no PC. As corridas do modo por turnos também
+# entram no top local (com o nome de quem jogou) e não contam aqui.
 func _best() -> Dictionary:
-	var top: Array = SaveManager.data["top"]
-	return top[0] if not top.is_empty() else {}
+	for e in SaveManager.data["top"]:
+		if String(e.get("name", "")) == "":
+			return e
+	return {}
 
-# Envia o recorde se ele (ou o nome) mudou desde o último envio.
+# Envia o recorde se ele subiu (ou o nome mudou) desde o último envio.
+# A pontuação online nunca baixa: depois de um reset só troca o nome.
 func submit_best() -> void:
-	var best := _best()
-	if not enabled() or _sending or player_name() == "" or best.is_empty():
+	if not enabled() or _sending or player_name() == "":
 		return
-	var score := int(best["score"])
-	if score == int(SaveManager.data["online_sent"]) and player_name() == SaveManager.data["online_sent_name"]:
+	var best := _best()
+	var score := int(best.get("score", 0))
+	var sent := int(SaveManager.data["online_sent"])
+	var name_changed := player_name() != String(SaveManager.data["online_sent_name"])
+	if score <= sent and not (name_changed and sent > 0):
 		return
 	if String(SaveManager.data["online_id"]) == "":
 		SaveManager.data["online_id"] = Crypto.new().generate_random_bytes(16).hex_encode()
 		SaveManager.save()
-	var body := JSON.stringify({
-		"id": SaveManager.data["online_id"],
-		"name": player_name(),
-		"score": score,
-		"km": float(best["km"]),
-		"car": String(best["car"]),
-	})
+	var id := String(SaveManager.data["online_id"])
 	var sent_name := player_name()
+	var url := "%s/rest/v1/%s?on_conflict=id" % [SUPABASE_URL, TABLE]
+	var method := HTTPClient.METHOD_POST
+	var body := ""
+	if score > sent:
+		body = JSON.stringify({
+			"id": id,
+			"name": sent_name,
+			"score": score,
+			"km": float(best["km"]),
+			"car": String(best["car"]),
+		})
+	else:
+		url = "%s/rest/v1/%s?id=eq.%s" % [SUPABASE_URL, TABLE, id]
+		method = HTTPClient.METHOD_PATCH
+		body = JSON.stringify({"name": sent_name})
+		score = sent
 	_sending = true
-	_request("%s/rest/v1/%s?on_conflict=id" % [SUPABASE_URL, TABLE], HTTPClient.METHOD_POST, body,
+	_request(url, method, body,
 		func(ok: bool, _text: String) -> void:
 			_sending = false
 			if ok:
 				SaveManager.data["online_sent"] = score
 				SaveManager.data["online_sent_name"] = sent_name
 				SaveManager.save()
+				submitted.emit()
 				submit_best() # o nome pode ter mudado durante o envio
 	)
 
@@ -80,6 +98,9 @@ func fetch_top() -> void:
 func _request(url: String, method: int, body: String, done: Callable) -> void:
 	var http := HTTPRequest.new()
 	http.timeout = 10.0
+	# na web o navegador já descompacta a resposta; com isso ligado o Godot
+	# tentava descompactar de novo, dava erro e o top 10 não carregava
+	http.accept_gzip = false
 	add_child(http)
 	http.request_completed.connect(func(result: int, code: int, _headers: PackedStringArray, bytes: PackedByteArray) -> void:
 		http.queue_free()

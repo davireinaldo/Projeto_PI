@@ -3,7 +3,9 @@ extends Node
 # Som do ZERO-IMPACT (autoload): música com troca suave entre faixas,
 # efeitos sonoros, ronco do motor que acompanha a velocidade e as
 # opções de ligar/desligar música e efeitos (salvas no SaveManager).
-# Os .wav são gerados por tools/gerar_sons.py.
+# Os .wav são gerados por tools/gerar_sons.py. O loop de menu, race e engine
+# fica na importação (.import, loop_mode=2): ligado por código ele não chega
+# no navegador (modo Sample da web) e a música parava no fim.
 
 const MUSIC := {
 	"menu": preload("res://assets/audio/music/menu.wav"),
@@ -51,15 +53,12 @@ var _engine: AudioStreamPlayer
 var _engine_on: bool = false
 var _ui_quiet_until: float = 0.0
 var _duck: float = 0.0 # abaixa a música na pausa
+var _unlocked := not OS.has_feature("web") # navegador libera o som no 1º toque
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_make_bus("Music")
 	_make_bus("SFX")
-
-	for key in LOOPING:
-		_set_loop(MUSIC[key])
-	_set_loop(ENGINE)
 
 	_music_a = _player("Music")
 	_music_b = _player("Music")
@@ -85,10 +84,18 @@ func _player(bus: String) -> AudioStreamPlayer:
 	add_child(p)
 	return p
 
-func _set_loop(s: AudioStreamWAV) -> void:
-	s.loop_mode = AudioStreamWAV.LOOP_FORWARD
-	s.loop_begin = 0
-	s.loop_end = int(s.get_length() * s.mix_rate)
+# Na web o som só é liberado no primeiro toque/clique. No celular (iPhone)
+# a música que começou antes disso pode ficar muda, então ela recomeça
+# do mesmo ponto quando o jogador solta o dedo pela primeira vez.
+func _input(event: InputEvent) -> void:
+	if _unlocked:
+		return
+	var released: bool = (event is InputEventScreenTouch or event is InputEventMouseButton) and not event.pressed
+	if not (released or (event is InputEventKey and event.pressed)):
+		return
+	_unlocked = true
+	if _music_a.playing:
+		_music_a.play(_music_a.get_playback_position())
 
 # ---------- opções ----------
 
