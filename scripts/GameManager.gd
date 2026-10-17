@@ -36,7 +36,7 @@ var cars: Array = [
 	 "price": 3500, "desc": "Agilidade máxima.\n+50% de pontos.",
 	 "lane_speed": 19.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.0, "score_mult": 1.5, "magnet": 0.0},
 	{"id": "zero", "name": "ZERO", "model": "legend", "color": Color(0.07, 0.09, 0.14), "accent": Color(0.1, 1.0, 0.9),
-	 "price": 1, "desc": "O lendário. Escudo, vida extra,\nímã e moedas em dobro.",
+	 "price": 10000, "desc": "O lendário. Escudo, vida extra,\nímã e moedas em dobro.",
 	 "lane_speed": 16.0, "start_shield": 4.0, "lives": 1, "coin_mult": 2.0, "score_mult": 1.5, "magnet": 150.0},
 ]
 

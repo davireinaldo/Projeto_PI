@@ -41,7 +41,7 @@ Pickup (400) ............. aguenta 1 batida extra
 Muscle (900) ............. +50% moedas
 Esportivo (1800) ......... ímã de moedas, +25% pontos
 F1 (3500) ................ agilidade máxima, +50% pontos
-ZERO (7000) .............. escudo, vida extra, ímã, moedas x2, +50% pontos
+ZERO (10000) ............. escudo, vida extra, ímã, moedas x2, +50% pontos
 Os desenhos de cada modelo ficam em scripts/CarVisual.gd.
 
 MOEDAS

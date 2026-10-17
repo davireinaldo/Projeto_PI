@@ -177,6 +177,15 @@ func buy_upgrade(id: String, price: int) -> bool:
 	save()
 	return true
 
+# Trapaça (nome secreto no modo por turnos): todos os carros e melhorias no máximo.
+func unlock_all() -> void:
+	for c in GameManager.cars:
+		if not is_owned(c["id"]):
+			data["owned"].append(c["id"])
+	for u in GameManager.upgrades:
+		data["upgrades"][u["id"]] = GameManager.UPGRADE_PRICES.size()
+	save()
+
 func total_km() -> float:
 	return float(data["total_km"])
 

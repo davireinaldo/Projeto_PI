@@ -10,6 +10,9 @@ const World := preload("res://scripts/World.gd")
 const FX := preload("res://scripts/FX.gd")
 const UI := preload("res://scripts/UIKit.gd")
 
+const NAME_MAX := 18
+# digitar isto como nome libera todos os carros e melhorias
+const CHEAT := "caitano melhor professor"
 const MEDALS := [Color(1.0, 0.82, 0.2), Color(0.85, 0.87, 0.92), Color(0.85, 0.55, 0.3)]
 
 var root: Control
@@ -69,7 +72,7 @@ func _build_setup() -> void:
 	name_edit.position = Vector2(24, 96)
 	name_edit.size = Vector2(300, 50)
 	name_edit.placeholder_text = "Nome do jogador"
-	name_edit.max_length = 18
+	name_edit.max_length = 32 # cabe a trapaça (nomes normais: até NAME_MAX)
 	name_edit.add_theme_font_size_override("font_size", 20)
 	name_edit.add_theme_stylebox_override("normal", UI.style(Color(0.06, 0.08, 0.13, 0.95), Color(0.25, 0.3, 0.4)))
 	name_edit.add_theme_stylebox_override("focus", UI.style(Color(0.1, 0.14, 0.2, 0.95), UI.ACCENT, 10, 3))
@@ -108,6 +111,12 @@ func _add_name() -> void:
 	if n.is_empty():
 		_error("Digite um nome")
 		return
+	if " ".join(n.to_lower().split(" ", false)) == CHEAT:
+		_cheat()
+		return
+	if n.length() > NAME_MAX:
+		_error("Nome com no máximo %d letras" % NAME_MAX)
+		return
 	if names.size() >= GameManager.TURN_MAX_PLAYERS:
 		_error("Máximo de %d jogadores" % GameManager.TURN_MAX_PLAYERS)
 		return
@@ -120,6 +129,16 @@ func _add_name() -> void:
 	msg_label.text = ""
 	AudioManager.play("coin", -4.0, 0.0)
 	_refresh_list()
+	name_edit.grab_focus()
+
+func _cheat() -> void:
+	SaveManager.unlock_all()
+	name_edit.clear()
+	AudioManager.play("ui_buy", 0.0, 0.0)
+	FX.burst(root, Vector2(240, 120), UI.GOLD, 70, 380.0, 1.0, 5.0)
+	FX.burst(root, Vector2(240, 120), UI.ACCENT, 30, 260.0, 0.8, 4.0)
+	msg_label.add_theme_color_override("font_color", Color(0.5, 1, 0.6))
+	msg_label.text = "TRAPAÇA ATIVADA! Tudo liberado"
 	name_edit.grab_focus()
 
 func _remove_name(i: int) -> void:
@@ -144,6 +163,7 @@ func _refresh_list() -> void:
 	start_btn.disabled = names.is_empty()
 
 func _error(text: String) -> void:
+	msg_label.add_theme_color_override("font_color", Color(1, 0.4, 0.4))
 	msg_label.text = text
 	AudioManager.play("ui_error", 0.0, 0.0)
 	var tw := create_tween()
