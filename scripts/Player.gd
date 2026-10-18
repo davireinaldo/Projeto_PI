@@ -7,6 +7,7 @@ extends Area2D
 
 const CarVisual := preload("res://scripts/CarVisual.gd")
 const PlayerFX := preload("res://scripts/PlayerFX.gd")
+const FX := preload("res://scripts/FX.gd")
 const Paints := preload("res://scripts/Paints.gd")
 
 signal crashed(other: Area2D)
@@ -24,6 +25,8 @@ var car: Dictionary
 var visual: Node2D
 var history: Array = [] # posições x recentes (rastro da câmera lenta)
 var ice_time: float = 0.0 # no gelo a troca de faixa fica lenta e o carro derrapa
+var skids: Node2D # marcas de pneu na pista (Skids.gd, colocado pelo Game)
+var _last_rear: Array = [] # rodas de trás no quadro anterior (para riscar a marca)
 var _touch_start: Variant = null # onde o dedo/mouse encostou (null = solto)
 var _swiped: bool = false
 var _t: float = 0.0
@@ -59,6 +62,7 @@ func _ready() -> void:
 
 func _process(delta: float) -> void:
 	if GameManager.game_over:
+		visual.wheel_speed = 0.0
 		return
 	_t += delta
 	if GameManager.debug_autopilot:
@@ -81,6 +85,8 @@ func _process(delta: float) -> void:
 	rotation = lerp(rotation, clamp(diff * 0.012, -0.25, 0.25) + wobble, 0.25)
 	GameManager.player_pos = position
 
+	_tyre_fx(diff)
+
 	history.push_front(position.x)
 	if history.size() > 8:
 		history.pop_back()
@@ -93,6 +99,7 @@ func _steer(dir: int) -> void:
 	if new_lane != lane:
 		AudioManager.play("whoosh", -4.0, 0.12)
 		steered.emit()
+		_puff(4)
 	lane = new_lane
 
 # Deslizar troca de faixa assim que o dedo anda SWIPE_MIN (dá para deslizar
@@ -116,6 +123,27 @@ func _unhandled_input(event: InputEvent) -> void:
 			_steer(1 if dx > 0.0 else -1)
 			_swiped = true
 			_touch_start = event.position
+
+# Só visual: rodas girando, carroceria pendendo na curva e, no gelo ou numa
+# troca de faixa brusca em alta velocidade, marcas de pneu e fumaça.
+func _tyre_fx(diff: float) -> void:
+	visual.wheel_speed = GameManager.speed
+	visual.lean = lerp(visual.lean, clamp(diff * 0.03, -1.0, 1.0), 0.2)
+	var fast := (GameManager.speed - 150.0) / maxf(GameManager.max_speed - 150.0, 1.0) > 0.45
+	var rear: Array = []
+	if skids and (ice_time > 0.0 or (fast and abs(diff) > 30.0)):
+		for p: Vector2 in visual.rear_wheels():
+			rear.append(visual.to_global(p))
+		if _last_rear.size() == rear.size():
+			for i in rear.size():
+				skids.add(_last_rear[i], rear[i])
+		if ice_time > 0.0 and randf() < 0.12:
+			_puff(2)
+	_last_rear = rear
+
+func _puff(amount: int) -> void:
+	for p: Vector2 in visual.rear_wheels():
+		FX.smoke(get_parent(), visual.to_global(p), amount, GameManager.speed)
 
 # Chamado pelo próprio obstáculo quando encosta no carro.
 func hit_obstacle(o: Area2D) -> void:

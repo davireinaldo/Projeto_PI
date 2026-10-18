@@ -9,6 +9,7 @@ const Player := preload("res://scripts/Player.gd")
 const Spawner := preload("res://scripts/Spawner.gd")
 const Weather := preload("res://scripts/Weather.gd")
 const Lighting := preload("res://scripts/Lighting.gd")
+const Skids := preload("res://scripts/Skids.gd")
 const PowerUp := preload("res://scripts/PowerUp.gd")
 const Missions := preload("res://scripts/Missions.gd")
 const FX := preload("res://scripts/FX.gd")
@@ -34,6 +35,7 @@ var player: Area2D
 var spawner: Node
 var weather: Node2D
 var lighting: Node2D
+var skids: Node2D # marcas de pneu (entre a pista e os carros)
 var camera: Camera2D
 var hud: Control
 var overlay: Control
@@ -70,12 +72,17 @@ func _ready() -> void:
 	add_child(world)
 	world.biome_changed.connect(_on_biome_changed)
 
+	skids = Skids.new()
+	skids.process_mode = Node.PROCESS_MODE_PAUSABLE
+	add_child(skids)
+
 	entities = Node2D.new()
 	entities.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(entities)
 
 	player = Player.new()
 	player.process_mode = Node.PROCESS_MODE_PAUSABLE
+	player.skids = skids
 	add_child(player)
 	player.crashed.connect(_on_crash)
 	player.coin_picked.connect(_on_coin)
@@ -210,6 +217,7 @@ func _on_crash(t: Area2D) -> void:
 			t.queue_free()
 			shake(8.0)
 		"shield":
+			_hit_fx(t)
 			AudioManager.play("shield_block")
 			AudioManager.play("crash", -10.0)
 			_smash_fx(t)
@@ -219,6 +227,7 @@ func _on_crash(t: Area2D) -> void:
 			shake(9.0)
 			flash(Color(0.4, 0.95, 1.0), 0.3)
 		"life":
+			_hit_fx(t)
 			AudioManager.play("crash", -3.0)
 			AudioManager.play("life_lost")
 			_smash_fx(t)
@@ -226,6 +235,11 @@ func _on_crash(t: Area2D) -> void:
 			t.queue_free()
 			shake(15.0)
 			flash(Color(1, 0.2, 0.2), 0.45)
+
+# lataria do jogador pisca e saem faíscas no ponto do contato
+func _hit_fx(t: Area2D) -> void:
+	player.visual.hit()
+	FX.sparks(entities, (t.global_position + player.position) * 0.5)
 
 # veículo explode; obstáculo voa em pedaços da cor dele
 func _smash_fx(t: Area2D) -> void:

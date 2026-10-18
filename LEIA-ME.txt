@@ -173,6 +173,10 @@ assets/fonts ............ fonte Russo One (licença OFL em RussoOne-OFL.txt)
 scripts/Traffic.gd ...... veículos do tráfego
 scripts/Spawner.gd ...... cria tráfego, moedas e poderes
 scripts/Player.gd / PlayerFX.gd .. carro do jogador e efeitos
+scripts/CarVisual.gd .... monta o desenho dos carros (camadas SVG, rodas girando,
+                          suspensão, clarão de batida)
+scripts/CarData.gd ...... rodas e piscas de cada modelo (gerado por tools/gerar_carros.py)
+scripts/Skids.gd ........ marcas de pneu na pista
 scripts/FX.gd, UIKit.gd, DrawHook.gd .. efeitos e interface
 scripts/AudioManager.gd . música, efeitos sonoros e motor
 scripts/Upgrades.gd ..... tela da Oficina

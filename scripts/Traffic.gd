@@ -83,6 +83,7 @@ func occupies_lane(l: int) -> bool:
 
 func _process(delta: float) -> void:
 	if GameManager.game_over:
+		visual.wheel_speed = 0.0
 		return
 	var rel: float
 	if kind == "racer":
@@ -91,6 +92,7 @@ func _process(delta: float) -> void:
 		rel = _keep_distance(GameManager.speed - own_speed)
 	rel_speed = rel
 	position.y += rel * delta
+	visual.wheel_speed = maxf(GameManager.speed - rel, 0.0) # velocidade dele no asfalto
 	_lane_logic(delta)
 	if position.y > 720.0 + length or position.y < -length - 250.0:
 		queue_free()
@@ -147,10 +149,12 @@ func _lane_logic(delta: float) -> void:
 			var tx: float = GameManager.LANES[_target]
 			position.x = move_toward(position.x, tx, 120.0 * delta)
 			rotation = sign(tx - position.x) * 0.12
+			visual.lean = sign(tx - position.x) * 0.7
 			if is_equal_approx(position.x, tx):
 				lane = _target
 				_target = -1
 				rotation = 0.0
+				visual.lean = 0.0
 				visual.blink = 0
 				_state = 0 if kind == "racer" else 3
 

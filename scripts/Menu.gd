@@ -69,6 +69,8 @@ func _process(delta: float) -> void:
 	var diff: float = GameManager.LANES[hero_lane] - hero.position.x
 	hero.position.x += diff * clamp(delta * 9.0, 0.0, 1.0)
 	hero.rotation = lerp(hero.rotation, clamp(diff * 0.012, -0.25, 0.25), 0.25)
+	hero.lean = lerp(hero.lean, clamp(diff * 0.03, -1.0, 1.0), 0.2)
+	hero.wheel_speed = GameManager.speed
 	# o jogador pode sair da tela cheia pelo navegador (Esc), então confere sempre
 	_fs_btn.text = "TELA CHEIA: " + ("ON" if UI.is_fullscreen() else "OFF")
 
