@@ -3,6 +3,8 @@ extends Node
 # Cria tráfego, moedas, power-ups, rivais velozes (racers) e zonas de obras.
 # GARANTIA ESTRITA DE PASSABILIDADE:
 # Nunca fecha as 3 faixas ao mesmo tempo nem cria situações sem rota de fuga.
+# Durante bloqueios/obras em 1 faixa, os carros alternam entre as 2 faixas livres
+# com espaçamento vertical seguro (zigue-zague), nunca vindo lado a lado.
 
 const Traffic := preload("res://scripts/Traffic.gd")
 const Coin := preload("res://scripts/Coin.gd")
@@ -31,6 +33,7 @@ var _traffic_t: float = 1.2
 var _coin_t: float = 1.5
 var _power_t: float = 5.0
 var _obstacle_t: float = 3.0
+var _last_traffic_lane: int = -1
 
 # Racers e Dinâmicas
 var _racer_t: float = 14.0
@@ -44,6 +47,9 @@ var _work_zone_interval: float = 30.0
 var _work_zone_timer: float = 0.0
 var _work_cone_timer: float = 0.0
 
+func _ready() -> void:
+	add_to_group("spawner")
+
 # 0 no começo, 1 na velocidade máxima
 func difficulty() -> float:
 	return clamp((GameManager.cruise_speed - GameManager.base_speed) / (GameManager.max_speed - GameManager.base_speed), 0.0, 1.0)
@@ -56,8 +62,10 @@ func _process(delta: float) -> void:
 	# Tráfego regular e emergências
 	_traffic_t -= delta
 	if _traffic_t <= 0.0:
-		_spawn_traffic(f)
-		_traffic_t = lerp(1.15, 0.48, f) * randf_range(0.85, 1.2)
+		if _spawn_traffic(f):
+			_traffic_t = lerp(1.1, 0.48, f) * randf_range(0.85, 1.15)
+		else:
+			_traffic_t = 0.15
 
 	# Moedas
 	if spawn_coins:
@@ -85,13 +93,14 @@ func _process(delta: float) -> void:
 	# Racers (durante a corrida, surgem do rodapé com aviso prévio)
 	# NUNCA surgem durante trecho em obras nem na faixa do jogador
 	if GameManager.running and not GameManager.game_over:
+		var in_work: bool = work_zone_active or _has_work_cones_on_screen()
 		if _racer_warning_lane >= 0:
 			_racer_warning_timer -= delta
 			if _racer_warning_timer <= 0.0:
-				if not work_zone_active:
+				if not in_work:
 					spawn_racer(_racer_warning_lane)
 				_racer_warning_lane = -1
-		elif not work_zone_active:
+		elif not in_work:
 			_racer_t -= delta
 			if _racer_t <= 0.0 and GameManager.distance_m > 300.0:
 				_racer_t = randf_range(18.0, 30.0)
@@ -111,15 +120,30 @@ func _process(delta: float) -> void:
 		else:
 			_work_zone_interval -= delta
 			if _work_zone_interval <= 0.0 and GameManager.distance_m > 400.0:
-				_work_zone_interval = randf_range(35.0, 52.0)
 				_start_work_zone()
 
 func _traffic() -> Array:
 	return container.get_tree().get_nodes_in_group("traffic")
 
+func _all_blockers() -> Array:
+	var res: Array = []
+	var seen := {}
+	for group in ["traffic", "obstacles"]:
+		for n in container.get_tree().get_nodes_in_group(group):
+			if not seen.has(n):
+				seen[n] = true
+				res.append(n)
+	return res
+
+func _has_work_cones_on_screen() -> bool:
+	for o in container.get_tree().get_nodes_in_group("obstacles"):
+		if "is_work_zone" in o and o.is_work_zone and o.position.y < 640.0:
+			return true
+	return false
+
 # Faixa sem ninguém (veículo ou obstáculo) perto do topo da tela?
 func lane_clear_top(l: int, depth: float) -> bool:
-	for t in _traffic() + container.get_tree().get_nodes_in_group("obstacles"):
+	for t in _all_blockers():
 		if t.kind != "racer" and t.occupies_lane(l) and t.position.y - t.length * 0.5 < depth:
 			return false
 	return true
@@ -132,50 +156,86 @@ func _items_clear_top(l: int, depth: float) -> bool:
 	return true
 
 # Regra matemática estrita de passabilidade:
-# Garante que SEMPRE exista pelo menos um corredor totalmente transitável.
-func _can_spawn(l: int, f: float) -> bool:
+# Simula a trajetória até passar pelo jogador e garante que as 3 faixas NUNCA fiquem
+# fechadas na mesma faixa horizontal (mantendo um corredor de zigue-zague sempre aberto).
+func _can_spawn(l: int, _f: float, spawn_y: float = -90.0, own_spd: float = 85.0, new_len: float = 64.0) -> bool:
 	if work_zone_active and l == work_zone_lane:
 		return false
-
-	# Durante obras, apenas UMA das faixas abertas pode ter veículos por vez!
-	if work_zone_active:
-		var remaining := [0, 1, 2]
-		remaining.erase(work_zone_lane)
-		var other_lane: int = remaining[1] if remaining[0] == l else remaining[0]
-		for t in _traffic() + container.get_tree().get_nodes_in_group("obstacles"):
-			if t.occupies_lane(other_lane) and t.position.y > -100.0 and t.position.y < 680.0:
-				return false
-
-	if not lane_clear_top(l, 180.0):
+	if _racer_warning_lane == l:
 		return false
 
-	# Verificação de ocupação horizontal em fatias verticais da pista:
-	var all_items: Array = _traffic() + container.get_tree().get_nodes_in_group("obstacles")
-	var slices := {}
-	slices[0] = {l: true}
+	var blockers: Array = _all_blockers()
+	var reserved_lanes := {}
+	if work_zone_active and work_zone_lane >= 0:
+		reserved_lanes[work_zone_lane] = true
+	if _racer_warning_lane >= 0:
+		reserved_lanes[_racer_warning_lane] = true
 
-	for t in all_items:
-		if t.kind == "racer":
+	for b in blockers:
+		if b.kind == "racer" and b.position.y > -100.0 and b.position.y < 740.0:
+			if b.occupies_lane(l):
+				return false
+			for k in [0, 1, 2]:
+				if b.occupies_lane(k):
+					reserved_lanes[k] = true
+		elif "is_work_zone" in b and b.is_work_zone and b.position.y < 640.0:
+			if b.lane == l:
+				return false
+			reserved_lanes[b.lane] = true
+
+	if not lane_clear_top(l, 230.0):
+		return false
+
+	var road_spd: float = max(GameManager.speed, 320.0)
+	var new_rel: float = max(road_spd - own_spd, 60.0)
+
+	# 1. Evita alcançar e colar na traseira de um veículo mais lento na mesma faixa
+	for b in blockers:
+		if b.kind == "racer":
 			continue
-		var ty: float = t.position.y
-		if ty > -100.0 and ty < 680.0:
-			var s_idx: int = int(round(ty / 130.0))
-			if not slices.has(s_idx):
-				slices[s_idx] = {}
-			for k in range(3):
-				if t.occupies_lane(k):
-					slices[s_idx][k] = true
+		if b.occupies_lane(l) and b.position.y > spawn_y and b.position.y < 640.0:
+			var b_own: float = b.own_speed if "own_speed" in b else 0.0
+			var b_rel: float = max(road_spd - b_own, 60.0)
+			var b_len: float = b.length if "length" in b else 50.0
+			if new_rel > b_rel:
+				var t_exit: float = (640.0 - b.position.y) / b_rel
+				var ny_exit: float = spawn_y + new_rel * t_exit
+				if 640.0 - ny_exit < (new_len + b_len) * 0.5 + 80.0:
+					return false
 
-	for s_idx in slices.keys():
-		var occ: Dictionary = slices[s_idx]
-		if work_zone_active:
-			occ[work_zone_lane] = true
-		if occ.size() >= 3:
+	# 2. Simula a descida até passar pelo jogador (t = 0.0s .. 2.6s)
+	# Nunca permite que as 3 faixas estejam ocupadas simultaneamente na mesma janela vertical
+	var t_sim: float = 0.0
+	while t_sim <= 2.6:
+		var ny: float = spawn_y + new_rel * t_sim
+		if ny > 640.0:
+			break
+		var blocked: Dictionary = reserved_lanes.duplicate()
+		blocked[l] = true
+
+		for b in blockers:
+			if b.kind == "racer":
+				continue
+			var b_own: float = b.own_speed if "own_speed" in b else 0.0
+			var b_rel: float = max(road_spd - b_own, 60.0)
+			var by: float = b.position.y + b_rel * t_sim
+			if by < -140.0 or by > 660.0:
+				continue
+			var b_len: float = b.length if "length" in b else 50.0
+			var safe_gap: float = (new_len + b_len) * 0.5 + 165.0
+			if abs(by - ny) < safe_gap:
+				for k in [0, 1, 2]:
+					if b.occupies_lane(k):
+						blocked[k] = true
+
+		if blocked.size() >= 3:
 			return false
+		t_sim += 0.12
 
 	return true
 
-func _spawn_traffic(f: float) -> void:
+func _spawn_traffic(f: float) -> bool:
+	var in_work: bool = work_zone_active or _has_work_cones_on_screen()
 	var heavy_count := 0
 	for t in _traffic():
 		if t.kind in ["truck", "bus"]:
@@ -183,27 +243,54 @@ func _spawn_traffic(f: float) -> void:
 
 	var r := randf()
 	var kind := "car"
-	if r < 0.07 and GameManager.distance_m > 250.0:
-		kind = "police"
-	elif r < 0.14 and GameManager.distance_m > 250.0:
-		kind = "ambulance"
-	elif r < 0.28 + 0.08 * f and heavy_count == 0 and not work_zone_active:
-		kind = "truck"
-	elif r < 0.35 + 0.08 * f and heavy_count == 0 and not work_zone_active:
-		kind = "bus"
+	var own_spd: float = randf_range(60.0, 115.0)
+	var veh_len: float = 64.0
+
+	if in_work:
+		# Durante obras, os veículos têm velocidade uniforme para manter a distância
+		# exata de zigue-zague entre as duas faixas abertas sem emparelharem
+		if r < 0.05 and GameManager.distance_m > 250.0:
+			kind = "police"
+		elif r < 0.10 and GameManager.distance_m > 250.0:
+			kind = "ambulance"
+		own_spd = 85.0
+		veh_len = 70.0 if kind == "ambulance" else 64.0
+	else:
+		if r < 0.07 and GameManager.distance_m > 250.0:
+			kind = "police"
+			own_spd = randf_range(155.0, 200.0)
+		elif r < 0.14 and GameManager.distance_m > 250.0:
+			kind = "ambulance"
+			own_spd = randf_range(145.0, 185.0)
+			veh_len = 70.0
+		elif r < 0.28 + 0.08 * f and heavy_count == 0:
+			kind = "truck"
+			own_spd = randf_range(10.0, 40.0)
+			veh_len = 124.0
+		elif r < 0.35 + 0.08 * f and heavy_count == 0:
+			kind = "bus"
+			own_spd = randf_range(20.0, 50.0)
+			veh_len = 136.0
 
 	var lanes := [0, 1, 2]
 	lanes.shuffle()
+	# Prioriza faixas diferentes da última usada para forçar a alternância entre faixas
+	if _last_traffic_lane in lanes:
+		lanes.erase(_last_traffic_lane)
+		lanes.append(_last_traffic_lane)
+
 	for l in lanes:
-		if _can_spawn(l, f):
+		if _can_spawn(l, f, -90.0, own_spd, veh_len):
 			var t := Traffic.new()
-			var changer: bool = kind == "car" and randf() < 0.15 + 0.25 * f and not work_zone_active
-			t.setup(kind, l, -90.0, changer)
+			var changer: bool = kind == "car" and randf() < 0.15 + 0.25 * f and not in_work
+			t.setup(kind, l, -90.0, changer, own_spd)
 			container.add_child(t)
-			return
+			_last_traffic_lane = l
+			return true
+	return false
 
 func _try_start_racer_warning() -> void:
-	if work_zone_active:
+	if work_zone_active or _has_work_cones_on_screen():
 		return
 
 	var player_node: Node2D = container.get_tree().get_first_node_in_group("player")
@@ -217,22 +304,38 @@ func _try_start_racer_warning() -> void:
 	candidate_lanes.shuffle()
 
 	for l in candidate_lanes:
-		# A faixa deve estar totalmente livre de cima a baixo
-		if not _lane_completely_clear(l):
+		# A faixa do rival deve estar totalmente livre e as outras duas não podem estar emparelhadas
+		if not _lane_completely_clear(l) or not _other_lanes_passable(l):
 			continue
 		_racer_warning_lane = l
 		_racer_warning_timer = 1.5
 		racer_warning.emit(l)
 		return
 
+func _other_lanes_passable(reserved_l: int) -> bool:
+	var rem := [0, 1, 2]
+	rem.erase(reserved_l)
+	var l_a: int = rem[0]
+	var l_b: int = rem[1]
+	var blockers: Array = _all_blockers()
+	for a in blockers:
+		if a.kind == "racer" or not a.occupies_lane(l_a) or a.position.y > 640.0:
+			continue
+		for b in blockers:
+			if b == a or b.kind == "racer" or not b.occupies_lane(l_b) or b.position.y > 640.0:
+				continue
+			if abs(a.position.y - b.position.y) < 220.0:
+				return false
+	return true
+
 func _lane_completely_clear(l: int) -> bool:
-	for t in _traffic() + container.get_tree().get_nodes_in_group("obstacles"):
+	for t in _all_blockers():
 		if t.occupies_lane(l) and t.position.y > -100.0 and t.position.y < 700.0:
 			return false
 	return true
 
 func _lane_clear_player(l: int) -> bool:
-	for t in _traffic() + container.get_tree().get_nodes_in_group("obstacles"):
+	for t in _all_blockers():
 		if t.kind == "racer":
 			continue
 		if t.occupies_lane(l) and abs(t.position.y - GameManager.PLAYER_Y) < 140.0:
@@ -262,18 +365,19 @@ func _spawn_coin_line() -> void:
 			return
 
 func _spawn_obstacle() -> bool:
-	if GameManager.distance_m - GameManager.debug_start_m < 300.0 or work_zone_active:
+	if GameManager.distance_m - GameManager.debug_start_m < 300.0 or work_zone_active or _has_work_cones_on_screen():
 		return true
 	var kinds: Array = BIOME_OBSTACLES.get(GameManager.biome_id_at(GameManager.distance_m), [])
 	if kinds.is_empty():
 		return true
 	var kind: String = kinds[randi() % kinds.size()]
+	var obs_len: float = Obstacle.SIZES[kind].y
 	var lanes := [0, 1, 2]
 	lanes.shuffle()
 	for l in lanes:
-		if not lane_clear_top(l, 200.0) or not _items_clear_top(l, 120.0):
+		if not lane_clear_top(l, 220.0) or not _items_clear_top(l, 120.0):
 			continue
-		if kind in ["cone", "barreira"] and (not _can_spawn(l, difficulty()) or not _wont_catch_up(l)):
+		if not _can_spawn(l, difficulty(), -70.0, 0.0, obs_len) or not _wont_catch_up(l):
 			continue
 		var o := Obstacle.new()
 		o.setup(kind, l, -70.0)
@@ -282,12 +386,20 @@ func _spawn_obstacle() -> bool:
 	return false
 
 func _start_work_zone() -> void:
-	# Escolhe sempre a faixa esquerda (0) ou direita (2) para fechar, deixando o resto limpo
-	work_zone_lane = 0 if randf() < 0.5 else 2
-	work_zone_active = true
-	_work_zone_timer = 8.5 # dura cerca de 8.5s
-	_work_cone_timer = 0.0
-	work_zone_started.emit(work_zone_lane)
+	# Escolhe a faixa esquerda (0) ou direita (2) para fechar, garantindo que o início não feche as 3 faixas
+	var candidates := [0, 2]
+	candidates.shuffle()
+	for cand in candidates:
+		if _can_spawn(cand, difficulty(), -60.0, 0.0, 34.0) and _other_lanes_passable(cand):
+			work_zone_lane = cand
+			work_zone_active = true
+			_work_zone_timer = 8.5
+			_work_cone_timer = 0.0
+			_work_zone_interval = randf_range(35.0, 52.0)
+			work_zone_started.emit(work_zone_lane)
+			return
+	# Se as outras faixas estiverem ocupadas no momento, aguarda 0.5s para iniciar a obra com segurança
+	_work_zone_interval = 0.5
 
 func _spawn_work_cone(l: int) -> void:
 	var o := Obstacle.new()

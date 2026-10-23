@@ -34,11 +34,13 @@ var _change_at_y: float = 0.0
 var _t_giroflex: float = 0.0
 var _siren_played: bool = false
 var _giro_node: Node2D
+var _forced_own_speed: float = -1.0
 
-func setup(k: String, l: int, y: float, can_change: bool = false) -> void:
+func setup(k: String, l: int, y: float, can_change: bool = false, forced_speed: float = -1.0) -> void:
 	kind = k
 	lane = l
 	changer = can_change
+	_forced_own_speed = forced_speed
 	position = Vector2(GameManager.LANES[l], y)
 
 func _ready() -> void:
@@ -77,6 +79,8 @@ func _ready() -> void:
 			own_speed = randf_range(50.0, 120.0)
 			if m == "muscle":
 				a = Color(1, 1, 1)
+	if _forced_own_speed >= 0.0 and kind != "racer":
+		own_speed = _forced_own_speed
 	visual = CarVisual.new()
 	visual.setup(m, c, a)
 	add_child(visual)
@@ -175,14 +179,28 @@ func _keep_distance(rel: float) -> float:
 	return rel
 
 func _lane_free(l: int, margin: float) -> bool:
-	for o in get_tree().get_nodes_in_group("traffic"):
-		if o == self:
-			continue
-		# obstáculo parado acima: ele vai descer em cima, então a faixa não serve
-		if o.is_in_group("obstacles") and o.occupies_lane(l) and o.position.y < position.y:
+	var spawner := get_tree().get_first_node_in_group("spawner")
+	if is_instance_valid(spawner):
+		if spawner.work_zone_active:
+			if kind != "racer" or l == spawner.work_zone_lane:
+				return false
+		if spawner._racer_warning_lane == l:
 			return false
-		if o.occupies_lane(l) and abs(o.position.y - position.y) < (length + o.length) * 0.5 + margin:
-			return false
+	var other_lane: int = 3 - lane - l
+	for group in ["traffic", "obstacles"]:
+		for o in get_tree().get_nodes_in_group(group):
+			if o == self:
+				continue
+			var o_len: float = o.length if "length" in o else 50.0
+			# obstáculo parado acima: ele vai descer em cima, então a faixa não serve
+			if o.is_in_group("obstacles") and o.occupies_lane(l) and o.position.y < position.y + 40.0:
+				return false
+			if o.occupies_lane(l) and abs(o.position.y - position.y) < (length + o_len) * 0.5 + margin:
+				return false
+			# Garante que a troca de faixa da IA nunca feche a 3ª faixa na mesma linha horizontal
+			if kind != "racer" and other_lane >= 0 and other_lane <= 2 and o.occupies_lane(other_lane):
+				if abs(o.position.y - position.y) < (length + o_len) * 0.5 + 175.0:
+					return false
 	return true
 
 func _start_change(l: int, with_signal: bool) -> void:

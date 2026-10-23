@@ -22,6 +22,7 @@ const BARRIER_COLOR := Color(1.0, 0.2, 0.75)
 var kind: String = "cone"
 var lane: int = 0
 var length: float = 34.0
+var own_speed: float = 0.0
 var rel_speed: float = 0.0
 var threat: bool = false # estava vindo na faixa do jogador (raspão)
 var passed: bool = false
