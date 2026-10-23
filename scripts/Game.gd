@@ -515,7 +515,7 @@ func _build_hud() -> void:
 	banner.modulate.a = 0.0
 
 	if player.has_jump:
-		jump_btn = UI.button(hud, "🚀 JUMP", Rect2(356, 638, 110, 46), func(): player.try_jump(), 14)
+		jump_btn = UI.button(hud, "JUMP", Rect2(356, 638, 110, 46), func(): player.try_jump(), 14)
 		jump_btn.mouse_filter = Control.MOUSE_FILTER_STOP
 
 # textos do HUD + "pulinho" quando os números mudam
@@ -551,7 +551,7 @@ func _update_hud() -> void:
 			jump_btn.text = "JUMP %.1fs" % player.jump_cooldown
 			jump_btn.disabled = true
 		else:
-			jump_btn.text = "🚀 JUMP!"
+			jump_btn.text = "JUMP!"
 			jump_btn.disabled = false
 
 func _punch(l: Label, amount: float) -> void:

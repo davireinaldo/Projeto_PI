@@ -12,6 +12,7 @@ CONTROLES
 - D-Pad ou Analógico Esquerdo no controle (Gamepad): trocar de faixa
 - ESPAÇO ou H (ou botões L/R no controle): buzinar (efeito sonoro)
 - W ou SETA PARA CIMA (ou Botão A no controle): Pulo SpaceX (carro Roadster)
+- No celular (touch): deslizar o dedo para cima (Swipe Up) ou botão JUMP (carro Roadster)
 - R (ou Botão X no controle): alternar estação de rádio (3 faixas)
 - Deslizar o dedo (ou arrastar o mouse) para o lado: trocar de faixa
 - Toque/clique rápido na metade esquerda/direita da tela: trocar de faixa

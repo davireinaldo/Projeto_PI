@@ -133,8 +133,9 @@ func _blow_horn() -> void:
 func occupies_lane(l: int) -> bool:
 	return abs(position.x - GameManager.LANES[l]) < 55.0 or lane == l
 
-# Deslizar troca de faixa assim que o dedo anda SWIPE_MIN (dá para deslizar
-# de novo sem soltar). Um toque rápido, sem deslizar, vale o lado da tela.
+# Cada deslize (swipe) move exatamente 1 faixa. Para mudar 2 faixas, o jogador
+# faz 2 swipes separados (levantando o dedo). Deslizar para cima aciona o pulo do Roadster.
+# Um toque rápido, sem deslizar, vale o lado da tela.
 # O toque do celular chega aqui como mouse (emulação padrão do Godot).
 func _unhandled_input(event: InputEvent) -> void:
 	if GameManager.game_over or get_tree().paused:
@@ -146,14 +147,24 @@ func _unhandled_input(event: InputEvent) -> void:
 			_swiped = false
 		elif _touch_start != null:
 			if not _swiped:
-				_steer(-1 if event.position.x < get_viewport_rect().size.x * 0.5 else 1)
+				var delta: Vector2 = event.position - _touch_start
+				if delta.y <= -SWIPE_MIN and abs(delta.y) > abs(delta.x):
+					if has_jump:
+						try_jump()
+				else:
+					_steer(-1 if event.position.x < get_viewport_rect().size.x * 0.5 else 1)
 			_touch_start = null
 	elif event is InputEventMouseMotion and _touch_start != null:
-		var dx: float = event.position.x - _touch_start.x
-		if abs(dx) >= SWIPE_MIN:
-			_steer(1 if dx > 0.0 else -1)
-			_swiped = true
-			_touch_start = event.position
+		if not _swiped:
+			var dx: float = event.position.x - _touch_start.x
+			var dy: float = event.position.y - _touch_start.y
+			if dy <= -SWIPE_MIN and abs(dy) > abs(dx):
+				if has_jump:
+					try_jump()
+				_swiped = true
+			elif abs(dx) >= SWIPE_MIN and abs(dx) >= abs(dy):
+				_steer(1 if dx > 0.0 else -1)
+				_swiped = true
 
 func try_jump() -> bool:
 	if not has_jump or is_jumping or jump_cooldown > 0.0 or GameManager.game_over:

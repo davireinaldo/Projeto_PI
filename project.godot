@@ -37,10 +37,14 @@ OnlineRanking="*res://scripts/OnlineRanking.gd"
 window/size/viewport_width=480
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
+window/stretch/aspect="ignore"
+window/handheld/orientation="portrait"
 
 [rendering]
 
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
 textures/vram_compression/import_etc2_astc=true
+anti_aliasing/quality/msaa_2d=2
+textures/canvas_textures/default_texture_filter=2
 environment/defaults/default_clear_color=Color(0.02, 0.02, 0.05, 1)

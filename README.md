@@ -65,8 +65,8 @@ Uma coleção de veículos com atributos e mecânicas exclusivas:
 
 | Ação | Teclado | Gamepad / Controle | Touch / Mobile |
 | :--- | :--- | :--- | :--- |
-| **Trocar de Faixa** | `←` / `→` ou `A` / `D` | D-Pad ou Analógico Esquerdo | Deslizar dedo ou tocar nos lados |
-| **Pulo SpaceX (Roadster)** | `W` ou `↑` | Botão `A` / Cruz | Botão de pulo no HUD |
+| **Trocar de Faixa** | `←` / `→` ou `A` / `D` | D-Pad ou Analógico Esquerdo | Deslizar dedo (1 faixa por swipe) ou tocar nos lados |
+| **Pulo SpaceX (Roadster)** | `W` ou `↑` | Botão `A` / Cruz | Deslizar para cima (Swipe Up) ou botão JUMP |
 | **Buzina** | `Espaço` ou `H` | Botões `LB` / `RB` (L1 / R1) | — |
 | **Mudar Rádio** | `R` | Botão `X` / Quadrado | Botão de rádio no HUD |
 | **Pausa / Voltar** | `Esc` | Botão `Start` / Menu | Botão de pausa no topo |
