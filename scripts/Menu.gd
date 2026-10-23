@@ -11,6 +11,7 @@ const Lighting := preload("res://scripts/Lighting.gd")
 const CarVisual := preload("res://scripts/CarVisual.gd")
 const Paints := preload("res://scripts/Paints.gd")
 const UI := preload("res://scripts/UIKit.gd")
+const Achievements := preload("res://scripts/Achievements.gd")
 const DrawHook := preload("res://scripts/DrawHook.gd")
 
 var world: Node2D
@@ -62,6 +63,7 @@ func _ready() -> void:
 	add_child(lighting)
 
 	_build_ui()
+	Achievements.check_all(self)
 
 func _process(delta: float) -> void:
 	_t += delta
@@ -108,20 +110,21 @@ func _build_ui() -> void:
 		["GARAGEM", "res://scenes/Garage.tscn"],
 		["OFICINA", "res://scenes/Upgrades.tscn"],
 		["RANKING", "res://scenes/Ranking.tscn"],
+		["CONQUISTAS", "res://scenes/Achievements.tscn"],
 		["ESTATÍSTICAS", "res://scenes/Stats.tscn"],
 		["CRÉDITOS", "res://scenes/Credits.tscn"],
 	]
-	var buttons := [UI.button(root, "JOGAR", Rect2(x, 278, w, 50), _play, 26)]
+	var buttons := [UI.button(root, "JOGAR", Rect2(x, 274, w, 48), _play, 24)]
 	buttons[0].add_theme_stylebox_override("normal", UI.style(Color(0.05, 0.3, 0.32, 0.9), UI.ACCENT, 10, 2))
-	var y := 334.0
+	var y := 328.0
 	for s in screens:
 		var scene: String = s[1]
-		buttons.append(UI.button(root, s[0], Rect2(x, y, w, 34), func(): UI.go(get_tree(), scene)))
-		y += 38.0
+		buttons.append(UI.button(root, s[0], Rect2(x, y, w, 32), func(): UI.go(get_tree(), scene), 14))
+		y += 35.0
 	# no navegador "sair" não fecha nada, então só aparece no PC
 	if not OS.has_feature("web"):
-		buttons.append(UI.button(root, "SAIR", Rect2(x, y, w, 34), func(): get_tree().quit()))
-		y += 38.0
+		buttons.append(UI.button(root, "SAIR", Rect2(x, y, w, 32), func(): get_tree().quit(), 14))
+		y += 35.0
 	_menu_bottom = y + 2.0
 
 	# opções de som

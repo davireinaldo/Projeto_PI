@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="168" height="304" viewBox="-21 -38 42 76">
+<defs><clipPath id="c1"><path d="M0,-36.5 C2.5,-36.5 5.17,-36.35 7.5,-35.8 C9.83,-35.25 12.28,-34.58 14,-33.2 C15.72,-31.82 17.03,-30.7 17.8,-27.5 C18.57,-24.3 18.63,-18.58 18.6,-14 C18.57,-9.42 17.67,-4.33 17.6,0 C17.53,4.33 17.9,8.5 18.2,12 C18.5,15.5 19.3,17.92 19.4,21 C19.5,24.08 19.62,28.33 18.8,30.5 C17.98,32.67 17.63,33.28 14.5,34 C11.37,34.72 4.83,34.8 0,34.8 C-4.83,34.8 -11.37,34.72 -14.5,34 C-17.63,33.28 -17.98,32.67 -18.8,30.5 C-19.62,28.33 -19.5,24.08 -19.4,21 C-19.3,17.92 -18.5,15.5 -18.2,12 C-17.9,8.5 -17.53,4.33 -17.6,0 C-17.67,-4.33 -18.57,-9.42 -18.6,-14 C-18.63,-18.58 -18.57,-24.3 -17.8,-27.5 C-17.03,-30.7 -15.72,-31.82 -14,-33.2 C-12.28,-34.58 -9.83,-35.25 -7.5,-35.8 C-5.17,-36.35 -2.5,-36.5 0,-36.5 Z"/></clipPath><linearGradient id="g2" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#000" stop-opacity="0.3"/><stop offset="0.16" stop-color="#000" stop-opacity="0.1"/><stop offset="0.34" stop-color="#000" stop-opacity="0"/><stop offset="0.7" stop-color="#000" stop-opacity="0.04"/><stop offset="0.86" stop-color="#000" stop-opacity="0.12"/><stop offset="1" stop-color="#000" stop-opacity="0.32"/></linearGradient><linearGradient id="v3" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.18"/><stop offset="0.25" stop-color="#fff" stop-opacity="0"/><stop offset="0.8" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity="0.22"/></linearGradient><linearGradient id="bronze4" x1="0.1" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#dfbb7a"/><stop offset="0.22" stop-color="#caa15f"/><stop offset="0.65" stop-color="#8a632e"/><stop offset="1" stop-color="#543c1a"/></linearGradient><clipPath id="cglass5"><path d="M0,-19.5 C2.17,-19.5 4.47,-19.33 6.5,-18.5 C8.53,-17.67 10.92,-16.42 12.2,-14.5 C13.48,-12.58 13.82,-10.42 14.2,-7 C14.58,-3.58 14.67,2 14.5,6 C14.33,10 13.78,13.92 13.2,17 C12.62,20.08 13.2,23.08 11,24.5 C8.8,25.92 3.67,25.5 0,25.5 C-3.67,25.5 -8.8,25.92 -11,24.5 C-13.2,23.08 -12.62,20.08 -13.2,17 C-13.78,13.92 -14.33,10 -14.5,6 C-14.67,2 -14.58,-3.58 -14.2,-7 C-13.82,-10.42 -13.48,-12.58 -12.2,-14.5 C-10.92,-16.42 -8.53,-17.67 -6.5,-18.5 C-4.47,-19.33 -2.17,-19.5 0,-19.5 Z"/></clipPath></defs>
+<rect x="-20.5" y="-17" width="5" height="13" rx="1.6" fill="#16171c" stroke="#12141c" stroke-width="0.8"/>
+<path d="M-19.7,-15.4 H-16.3" stroke="#3a3b42" stroke-width="0.7"/>
+<path d="M-19.7,-13 H-16.3" stroke="#3a3b42" stroke-width="0.7"/>
+<path d="M-19.7,-10.6 H-16.3" stroke="#3a3b42" stroke-width="0.7"/>
+<path d="M-19.7,-8.2 H-16.3" stroke="#3a3b42" stroke-width="0.7"/>
+<path d="M-19.7,-5.8 H-16.3" stroke="#3a3b42" stroke-width="0.7"/>
+<rect x="15.5" y="-17" width="5" height="13" rx="1.6" fill="#16171c" stroke="#12141c" stroke-width="0.8"/>
+<path d="M16.3,-15.4 H19.7" stroke="#3a3b42" stroke-width="0.7"/>
+<path d="M16.3,-13 H19.7" stroke="#3a3b42" stroke-width="0.7"/>
+<path d="M16.3,-10.6 H19.7" stroke="#3a3b42" stroke-width="0.7"/>
+<path d="M16.3,-8.2 H19.7" stroke="#3a3b42" stroke-width="0.7"/>
+<path d="M16.3,-5.8 H19.7" stroke="#3a3b42" stroke-width="0.7"/>
+<rect x="-20.5" y="15" width="5" height="14" rx="1.6" fill="#16171c" stroke="#12141c" stroke-width="0.8"/>
+<path d="M-19.7,16.6 H-16.3" stroke="#3a3b42" stroke-width="0.7"/>
+<path d="M-19.7,19 H-16.3" stroke="#3a3b42" stroke-width="0.7"/>
+<path d="M-19.7,21.4 H-16.3" stroke="#3a3b42" stroke-width="0.7"/>
+<path d="M-19.7,23.8 H-16.3" stroke="#3a3b42" stroke-width="0.7"/>
+<path d="M-19.7,26.2 H-16.3" stroke="#3a3b42" stroke-width="0.7"/>
+<rect x="15.5" y="15" width="5" height="14" rx="1.6" fill="#16171c" stroke="#12141c" stroke-width="0.8"/>
+<path d="M16.3,16.6 H19.7" stroke="#3a3b42" stroke-width="0.7"/>
+<path d="M16.3,19 H19.7" stroke="#3a3b42" stroke-width="0.7"/>
+<path d="M16.3,21.4 H19.7" stroke="#3a3b42" stroke-width="0.7"/>
+<path d="M16.3,23.8 H19.7" stroke="#3a3b42" stroke-width="0.7"/>
+<path d="M16.3,26.2 H19.7" stroke="#3a3b42" stroke-width="0.7"/>
+<rect x="-10" y="32.5" width="20" height="4" rx="1" fill="#181920"/>
+</svg>

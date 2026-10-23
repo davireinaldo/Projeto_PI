@@ -515,6 +515,79 @@ def legend():
     c.write()
 
 
+def roadster():
+    c = Car("roadster", 21, 38)
+    c.wheels([(-20.5, -17, 5, 13), (15.5, -17, 5, 13), (-20.5, 15, 5, 14), (15.5, 15, 5, 14)])
+
+    # Geometria angular aerodinâmica inspirada na imagem (Cybercab / Tesla Concept)
+    body_pts = sym([
+        (0, -36.5), (7.5, -35.8), (14, -33.2), (17.8, -27.5),
+        (18.6, -14), (17.6, 0), (18.2, 12), (19.4, 21),
+        (18.8, 30.5), (14.5, 34.0), (0, 34.8)
+    ])
+    body = smooth(body_pts)
+    clip = c.shell(body, shade=0.30)
+
+    # Brilhos sutis da pintura pérola acetinada
+    c.shine(clip, [(-4, -33), (-2, -33), (-5, -14), (-12, 4), (-14, 22), (-16, 20), (-13, 0), (-7, -18)], 0.22)
+
+    # Vincos aerodinâmicos angulares do capô dianteiro (iguais aos da foto)
+    c.panel_line([(5, -35), (9.5, -19)], 0.7, 0.7, both=True)
+    c.panel_line([(14, -33), (11, -21)], 0.6, 0.5, both=True)
+    c.panel_line([(0, -36.2), (0, -19.5)], 0.7, 0.55, both=False)
+    # Triângulos recortados nas pontas do capô (iguais aos da foto)
+    c.add("detail", '<polygon points="10.5,-32.5 16.5,-29.8 13.5,-24" fill="#dce0e8" stroke="%s" stroke-width="0.6"/>' % OUTLINE)
+    c.add("detail", '<polygon points="-10.5,-32.5 -16.5,-29.8 -13.5,-24" fill="#dce0e8" stroke="%s" stroke-width="0.6"/>' % OUTLINE)
+
+    # Vinco dos ombros laterais e cintura esculpida
+    c.panel_line([(17.5, -12), (16.8, 2), (18.2, 18), (17.5, 29)], 0.7, 0.65, both=True)
+
+    # Teto panorâmico GIGANTE em bronze metálico / dourado espelhado (exatamente como na foto)
+    glass_pts = sym([
+        (0, -19.5), (6.5, -18.5), (12.2, -14.5), (14.2, -7),
+        (14.5, 6), (13.2, 17), (11.0, 24.5), (0, 25.5)
+    ])
+    d_glass = smooth(glass_pts)
+    g_bronze = c.uid("bronze")
+    c.defs.append(
+        '<linearGradient id="%s" x1="0.1" y1="0" x2="0.6" y2="1">'
+        '<stop offset="0" stop-color="#dfbb7a"/>'
+        '<stop offset="0.22" stop-color="#caa15f"/>'
+        '<stop offset="0.65" stop-color="#8a632e"/>'
+        '<stop offset="1" stop-color="#543c1a"/>'
+        '</linearGradient>' % g_bronze
+    )
+    clip_glass = c.uid("cglass")
+    c.defs.append('<clipPath id="%s"><path d="%s"/></clipPath>' % (clip_glass, d_glass))
+
+    # Fundo de vidro bronze e faixas de reflexo espelhado
+    c.add("detail", '<path d="%s" fill="url(#%s)"/>' % (d_glass, g_bronze))
+    c.add("detail", '<g clip-path="url(#%s)">'
+                    '<path d="M-30,40 L-18,40 L8,-50 L-4,-50 Z" fill="#fff" fill-opacity="0.32"/>'
+                    '<path d="M-12,40 L-7,40 L19,-50 L14,-50 Z" fill="#fff" fill-opacity="0.24"/>'
+                    '</g>' % clip_glass)
+    c.add("detail", '<path d="%s" fill="none" stroke="%s" stroke-width="1.0" stroke-linejoin="round"/>' % (d_glass, OUTLINE))
+
+    # Divisões facetadas do vidro e teto (visíveis na foto)
+    c.panel_line([(0, -19.5), (0, 25.5)], 0.7, 0.75, both=False)
+    c.panel_line([(-14.2, 6.5), (14.2, 6.5)], 0.7, 0.75, both=False)
+    c.panel_line([(0, 6.5), (13.0, 18.0)], 0.6, 0.7, both=True)
+    c.panel_line([(6.5, -18.5), (8.5, 6.5)], 0.6, 0.65, both=True)
+
+    # Traseira angular estilo Kamm-back (recorte geométrico do porta-malas)
+    c.panel_line([(0, 31), (11, 29), (14.5, 34)], 0.7, 0.7, both=True)
+    c.add("detail", '<path d="M-13,33.5 Q0,34.5 13,33.5" stroke="%s" stroke-width="2.2" stroke-linecap="round" fill="none"/>' % TAIL)
+    c.add("accent", '<path d="M-13,33.5 Q0,34.5 13,33.5" stroke="#fff" stroke-width="1.2" stroke-linecap="round" fill="none"/>')
+
+    # Bicos propulsores SpaceX integrados no difusor
+    c.add("base", '<rect x="-10" y="32.5" width="20" height="4" rx="1" fill="#181920"/>')
+    for px in (-5, 5):
+        c.add("detail", '<circle cx="%s" cy="33.8" r="2.0" fill="%s" stroke="%s" stroke-width="0.5"/>' % (f(px), OUTLINE, METAL))
+        c.add("accent", '<circle cx="%s" cy="33.8" r="1.3" fill="#fff"/>' % f(px))
+
+    c.write()
+
+
 def van():
     c = Car("van", 22, 38)
     c.wheels([(-21, -26, 5, 13), (16, -26, 5, 13), (-21, 16, 5, 13), (16, 16, 5, 13)])
@@ -606,6 +679,7 @@ if __name__ == "__main__":
     coupe()
     f1()
     legend()
+    roadster()
     van()
     truck()
     bus()

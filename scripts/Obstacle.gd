@@ -25,12 +25,14 @@ var length: float = 34.0
 var rel_speed: float = 0.0
 var threat: bool = false # estava vindo na faixa do jogador (raspão)
 var passed: bool = false
+var is_work_zone: bool = false
 var _t: float = 0.0
 var _hit: bool = false
 
-func setup(k: String, l: int, y: float) -> void:
+func setup(k: String, l: int, y: float, work_zone: bool = false) -> void:
 	kind = k
 	lane = l
+	is_work_zone = work_zone
 	position = Vector2(GameManager.LANES[l], y)
 	length = SIZES[k].y
 	# a barreira começa apagada perto do fim do ciclo, pra dar tempo de ver
@@ -101,7 +103,17 @@ func _draw() -> void:
 	var s: Vector2 = SIZES[kind]
 	match kind:
 		"cone":
-			# faixa zebrada no chão + 3 cones
+			# Se for trecho de obras, desenha cavalete/barreira com faixas refletivas
+			if is_work_zone:
+				draw_rect(Rect2(-s.x * 0.5 - 4, -14, s.x + 8, 8), Color(0.9, 0.45, 0.05))
+				for stripe in range(5):
+					var sx := -s.x * 0.5 - 2.0 + stripe * 16.0
+					draw_rect(Rect2(sx, -14, 8, 8), Color(1, 1, 1, 0.9))
+				# Suportes do cavalete
+				draw_line(Vector2(-s.x * 0.5 + 4, -14), Vector2(-s.x * 0.5 + 4, 10), Color(0.2, 0.2, 0.22), 3.0)
+				draw_line(Vector2(s.x * 0.5 - 4, -14), Vector2(s.x * 0.5 - 4, 10), Color(0.2, 0.2, 0.22), 3.0)
+
+			# Faixa zebrada no chão + 3 cones
 			draw_rect(Rect2(-s.x * 0.5, -6, s.x, 12), Color(0, 0, 0, 0.25))
 			for i in range(3):
 				var p := Vector2(-24 + i * 24, -4 + (i % 2) * 8)
@@ -111,6 +123,16 @@ func _draw() -> void:
 				draw_arc(p, 6, 0, TAU, 16, Color(1, 1, 1, 0.95), 2.5)
 				draw_circle(p, 3, Color(1.0, 0.6, 0.2))
 				draw_circle(p + Vector2(-2, -2), 1.2, Color(1, 1, 1, 0.8))
+
+				# Luz estroboscópica de aviso nos cones / obras (sinalizador luminoso âmbar)
+				var flash_phase: bool = fmod(_t * 4.5 + i * 0.4, 1.0) < 0.5
+				if flash_phase or is_work_zone:
+					var l_col := Color(1.0, 0.88, 0.25)
+					draw_circle(p, 4.5, l_col)
+					draw_circle(p, 12.0, Color(1.0, 0.65, 0.05, 0.45))
+					draw_circle(p, 20.0, Color(1.0, 0.5, 0.0, 0.18))
+				else:
+					draw_circle(p, 2.5, Color(0.4, 0.25, 0.05))
 		"barreira":
 			var g := barrier_glow()
 			var c := BARRIER_COLOR
