@@ -18,6 +18,7 @@ config/name="ZERO-IMPACT"
 config/description="Jogo de corrida arcade 2D: desvie do tráfego, colete moedas e suba de patente."
 run/main_scene="res://scenes/Menu.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
+config/icon="res://assets/icons/icon_1024x1024.png"
 
 [audio]
 
@@ -36,9 +37,14 @@ OnlineRanking="*res://scripts/OnlineRanking.gd"
 window/size/viewport_width=480
 window/size/viewport_height=720
 window/stretch/mode="canvas_items"
+window/stretch/aspect="ignore"
+window/handheld/orientation="portrait"
 
 [rendering]
 
+textures/canvas_textures/default_texture_filter=2
 renderer/rendering_method="gl_compatibility"
 renderer/rendering_method.mobile="gl_compatibility"
+textures/vram_compression/import_etc2_astc=true
+anti_aliasing/quality/msaa_2d=2
 environment/defaults/default_clear_color=Color(0.02, 0.02, 0.05, 1)

@@ -20,7 +20,7 @@ const BLINK_POS := {
 	"gt": Vector3(-31, 31, 17), "sedan": Vector3(-30, 30, 17), "taxi": Vector3(-30, 30, 17),
 	"sport": Vector3(-30, 30, 17), "armored": Vector3(-28, 30, 18), "pickup": Vector3(-32, 33, 18),
 	"muscle": Vector3(-31, 31, 17), "coupe": Vector3(-30, 30, 17), "f1": Vector3(-30, 30, 14),
-	"legend": Vector3(-26, 30, 17), "van": Vector3(-33, 33, 18), "truck": Vector3(-60, 60, 21),
+	"legend": Vector3(-26, 30, 17), "roadster": Vector3(-28, 30, 17), "van": Vector3(-33, 33, 18), "truck": Vector3(-60, 60, 21),
 	"bus": Vector3(-66, 66, 21),
 }
 

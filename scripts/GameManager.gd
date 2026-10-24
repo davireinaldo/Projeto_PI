@@ -35,6 +35,9 @@ var cars: Array = [
 	{"id": "f1", "name": "F1", "model": "f1", "color": Color(0.85, 0.08, 0.35), "accent": Color(0.15, 0.95, 1.0),
 	 "price": 3500, "desc": "Agilidade máxima.\n+50% de pontos.",
 	 "lane_speed": 19.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.0, "score_mult": 1.5, "magnet": 0.0},
+	{"id": "roadster", "name": "Roadster", "model": "roadster", "color": Color(0.94, 0.95, 0.97), "accent": Color(0.85, 0.68, 0.38),
+	 "price": 6000, "desc": "Inspirado no novo Roadster.\nPulo SpaceX com timer de 15s.",
+	 "lane_speed": 17.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.25, "score_mult": 1.4, "magnet": 0.0, "has_jump": true},
 	{"id": "zero", "name": "ZERO", "model": "legend", "color": Color(0.07, 0.09, 0.14), "accent": Color(0.1, 1.0, 0.9),
 	 "price": 10000, "desc": "O lendário. Escudo, vida extra,\nímã e moedas em dobro.",
 	 "lane_speed": 16.0, "start_shield": 4.0, "lives": 1, "coin_mult": 2.0, "score_mult": 1.5, "magnet": 150.0},
@@ -189,14 +192,42 @@ func _input(event: InputEvent) -> void:
 		UI.toggle_fullscreen()
 
 func _setup_input() -> void:
-	var extra := {"steer_left": [KEY_LEFT, KEY_A], "steer_right": [KEY_RIGHT, KEY_D]}
-	for action in extra.keys():
+	var key_actions := {
+		"steer_left": [KEY_LEFT, KEY_A],
+		"steer_right": [KEY_RIGHT, KEY_D],
+		"horn": [KEY_SPACE, KEY_H],
+		"jump": [KEY_UP, KEY_W],
+		"radio_toggle": [KEY_R]
+	}
+	var joy_buttons := {
+		"steer_left": [JOY_BUTTON_DPAD_LEFT],
+		"steer_right": [JOY_BUTTON_DPAD_RIGHT],
+		"horn": [JOY_BUTTON_RIGHT_SHOULDER, JOY_BUTTON_LEFT_SHOULDER, JOY_BUTTON_B],
+		"jump": [JOY_BUTTON_A, JOY_BUTTON_Y],
+		"radio_toggle": [JOY_BUTTON_X]
+	}
+	for action in key_actions.keys():
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
-		for key in extra[action]:
+		for key in key_actions[action]:
 			var ev := InputEventKey.new()
 			ev.physical_keycode = key
 			InputMap.action_add_event(action, ev)
+		if joy_buttons.has(action):
+			for btn in joy_buttons[action]:
+				var jb := InputEventJoypadButton.new()
+				jb.button_index = btn
+				InputMap.action_add_event(action, jb)
+
+	var joy_left := InputEventJoypadMotion.new()
+	joy_left.axis = JOY_AXIS_LEFT_X
+	joy_left.axis_value = -1.0
+	InputMap.action_add_event("steer_left", joy_left)
+
+	var joy_right := InputEventJoypadMotion.new()
+	joy_right.axis = JOY_AXIS_LEFT_X
+	joy_right.axis_value = 1.0
+	InputMap.action_add_event("steer_right", joy_right)
 
 # ---------- carros ----------
 

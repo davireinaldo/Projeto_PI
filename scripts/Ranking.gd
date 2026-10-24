@@ -136,16 +136,20 @@ Veja RANKING ONLINE no LEIA-ME.txt.",
 	edit.add_theme_stylebox_override("focus", UI.style(Color(0.1, 0.14, 0.2, 0.95), UI.ACCENT, 8, 2))
 	edit.add_theme_color_override("font_placeholder_color", Color(1, 1, 1, 0.35))
 	top_box.add_child(edit)
+	var hint := "Seu recorde entra aqui automaticamente." if OnlineRanking.player_name() != "" else "Coloque seu nome para entrar no ranking mundial."
+	var feedback_label: Label = UI.label(top_box, hint, Vector2(0, 388), 12, Color(0.7, 0.75, 0.85), 480, HORIZONTAL_ALIGNMENT_CENTER)
+	var save_btn: Button
 	var save_name := func() -> void:
 		edit.release_focus()
 		if edit.text.strip_edges() == "":
 			return
 		OnlineRanking.set_player_name(edit.text)
 		edit.text = OnlineRanking.player_name()
+		if is_instance_valid(feedback_label):
+			feedback_label.text = "Nome salvo com sucesso!"
+			feedback_label.modulate = Color(0.2, 1.0, 0.4)
 	edit.text_submitted.connect(func(_t: String): save_name.call())
-	UI.button(top_box, "SALVAR", Rect2(328, 350, 120, 32), save_name, 14)
-	var hint := "Seu recorde entra aqui automaticamente." if OnlineRanking.player_name() != "" 		else "Coloque seu nome para entrar no ranking mundial."
-	UI.label(top_box, hint, Vector2(0, 388), 12, Color(0.7, 0.75, 0.85), 480, HORIZONTAL_ALIGNMENT_CENTER)
+	save_btn = UI.button(top_box, "SALVAR", Rect2(328, 350, 120, 32), save_name, 14)
 
 	online_box = Control.new()
 	online_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -164,9 +168,8 @@ func _on_online_top(ok: bool, list: Array) -> void:
 	for c in online_box.get_children():
 		c.queue_free()
 	if not ok:
-		UI.label(online_box, "Não deu para carregar o ranking.
-Confira a internet e tente de novo.",
-			Vector2(0, 460), 15, Color(1, 0.5, 0.5), 480, HORIZONTAL_ALIGNMENT_CENTER)
+		UI.label(online_box, "Sem conexão ou servidor indisponível.\nExibindo recordes locais no momento.",
+			Vector2(0, 460), 15, Color(1, 0.7, 0.5), 480, HORIZONTAL_ALIGNMENT_CENTER)
 		return
 	if list.is_empty():
 		UI.label(online_box, "Ninguém no ranking ainda.
