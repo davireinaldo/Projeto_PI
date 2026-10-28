@@ -21,6 +21,9 @@ HEIGHT = 320  # altura do carro no sprite (no jogo ele tem ~64 px: fica nítido 
 PAD = 16  # margem em volta (para o contorno e a sombra); o CarVisual.gd usa o mesmo valor
 OUTLINE = (16, 18, 26)
 OUTLINE_PX = 2.5  # espessura do contorno no sprite final
+# as imagens são pequenas (512 px): ampliar antes de recortar deixa a borda e
+# os detalhes lisos em vez de serrilhados
+UPSCALE = 2
 
 # id do carro -> (arquivo, ponto da lataria para amostrar a cor (x, y em 0..1), tolerância da cor)
 CARS = {
@@ -43,8 +46,9 @@ HOLES = ["f1"]
 TOLS = {"uno": (16, 24)}
 # Desenhos com traço de lápis/sombra realista: viram arte chapada (cores em
 # áreas lisas + linhas limpas) para combinar com o resto do jogo.
-# id -> número de cores
-FLAT = {"equilibrado": 14, "blindado": 12, "f1": 14, "roadster": 12}
+# id -> número de cores. (Equilibrado, Blindado e F1 ficavam manchados e
+# pixelados assim: com a imagem ampliada ficam melhor sem.)
+FLAT = {"roadster": 12}
 
 BG_TOL = 34  # distância de cor até o fundo que ainda conta como fundo
 FRINGE_TOL = 70  # na borda, aceita pixels um pouco mais longe do fundo (halo do JPEG)
@@ -100,6 +104,7 @@ def flatten(rgb, colors):
 
 def process(car_id, src, sample, tol):
     src_img = Image.open(src).convert("RGB")
+    src_img = src_img.resize((src_img.width * UPSCALE, src_img.height * UPSCALE), Image.LANCZOS)
     raw = np.asarray(src_img).astype(np.float32)
     # tira o chiado do JPEG antes de recortar e realçar
     clean = src_img.filter(ImageFilter.MedianFilter(3))

@@ -15,8 +15,10 @@ signal biome_changed(index: int)
 
 const W := 480.0
 const H := 720.0
-const ROAD_L := 90.0
-const ROAD_R := 390.0
+# bordas do asfalto: 90 e 390 com 3 faixas; a pista do versus (5) é mais larga
+var ROAD_L := 90.0
+var ROAD_R := 390.0
+var _side_k := 1.0 # largura das laterais em relação às de 3 faixas
 const VP := Vector2(240, 430) # ponto de fuga da perspectiva
 
 var follow_game: bool = true # usa GameManager.distance_m como distância
@@ -41,6 +43,10 @@ class Glow extends Node2D:
 
 func _ready() -> void:
 	z_index = -10
+	var edges := GameManager.road_edges()
+	ROAD_L = edges.x
+	ROAD_R = edges.y
+	_side_k = ROAD_L / 90.0
 	if follow_game:
 		distance_m = GameManager.distance_m
 	_bs = GameManager.biome_state(distance_m)
@@ -103,11 +109,11 @@ func _spawn_decor(left: bool, y: float) -> void:
 	var kind: String = kinds[randi() % kinds.size()]
 	var x: float
 	if left:
-		x = randf_range(22, ROAD_L - 26)
+		x = randf_range(22 * _side_k, ROAD_L - 26 * _side_k)
 	else:
-		x = randf_range(ROAD_R + 26, W - 22)
+		x = randf_range(ROAD_R + 26 * _side_k, W - 22 * _side_k)
 	if kind in ["building", "neon_building"]:
-		x = 44.0 if left else W - 44.0
+		x = 44.0 * _side_k if left else W - 44.0 * _side_k
 	elif kind == "lamp" or kind == "neon_pole":
 		x = ROAD_L - 14.0 if left else ROAD_R + 14.0
 	var d := {"x": x, "y": y, "kind": kind, "seed": randi() % 1000, "left": left, "par": 1.0}
@@ -218,7 +224,8 @@ func _draw() -> void:
 	# faixas tracejadas
 	var dash := _col("dash")
 	var dash_off := fmod(scroll, 50.0)
-	for dx in [190.0, 290.0]:
+	for i in range(GameManager.lane_count - 1):
+		var dx: float = (GameManager.LANES[i] + GameManager.LANES[i + 1]) * 0.5
 		var dy := -50.0 + dash_off
 		while dy < H:
 			if neon > 0.0:
@@ -371,7 +378,7 @@ func _draw_sea(w: float) -> void:
 func _building_geom(d: Dictionary) -> Dictionary:
 	var p := Vector2(d["x"], d["y"])
 	var s: int = d["seed"]
-	var size := Vector2(68 if d["kind"] == "neon_building" else 70, 100 + s % (25 if d["kind"] == "neon_building" else 20))
+	var size := Vector2((68 if d["kind"] == "neon_building" else 70) * _side_k, 100 + s % (25 if d["kind"] == "neon_building" else 20))
 	var h := 0.1 + (s % 4) * 0.035
 	var base := Rect2(p - size * 0.5, size)
 	return {"base": base, "off": (p - VP) * h, "h": h}

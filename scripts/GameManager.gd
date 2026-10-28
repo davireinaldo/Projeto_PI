@@ -119,7 +119,11 @@ var ranks: Array = [
 ]
 
 # ---------- Pista ----------
-const LANES: Array = [140.0, 240.0, 340.0]
+const LANES_3: Array = [140.0, 240.0, 340.0]
+# versus: 5 faixas mais estreitas numa pista mais larga
+const LANES_5: Array = [96.0, 168.0, 240.0, 312.0, 384.0]
+var LANES: Array = LANES_3 # faixas em uso (ver set_lanes)
+var lane_count: int = 3
 const PLAYER_Y := 600.0
 # 10 px de tela = 1 metro. velocidade em km/h = px/s * 0.36
 const PX_PER_METER := 10.0
@@ -175,6 +179,14 @@ var turn_mode: bool = false
 var turn_players: Array = [] # nomes, na ordem das vezes
 var turn_index: int = 0 # de quem é a vez agora
 var turn_results: Array = [] # {"name", "km", "score", "car"} de quem já correu
+
+# ---------- Versus ----------
+# Dois jogadores na mesma tela, 5 faixas. Quem bater perde a rodada;
+# vence quem ganhar VERSUS_WINS rodadas primeiro.
+const VERSUS_WINS := 2
+var versus_cars: Array = ["", ""] # carro de cada jogador
+var versus_wins: Array = [0, 0]
+var versus_round: int = 1
 
 # opções de teste via linha de comando:  -- --autopilot --start-km=4
 var debug_autopilot: bool = false
@@ -246,6 +258,31 @@ func _setup_input() -> void:
 	joy_right.axis = JOY_AXIS_LEFT_X
 	joy_right.axis_value = 1.0
 	InputMap.action_add_event("steer_right", joy_right)
+
+	# versus: jogador 1 no A/D/W e no 1º controle, jogador 2 nas setas e no 2º
+	var versus_keys := {
+		"p1_left": KEY_A, "p1_right": KEY_D, "p1_up": KEY_W,
+		"p2_left": KEY_LEFT, "p2_right": KEY_RIGHT, "p2_up": KEY_UP,
+	}
+	var versus_joy := {"_left": JOY_BUTTON_DPAD_LEFT, "_right": JOY_BUTTON_DPAD_RIGHT, "_up": JOY_BUTTON_A}
+	for action in versus_keys.keys():
+		if not InputMap.has_action(action):
+			InputMap.add_action(action)
+		var ev := InputEventKey.new()
+		ev.physical_keycode = versus_keys[action]
+		InputMap.action_add_event(action, ev)
+		var device: int = 0 if action.begins_with("p1") else 1
+		var suffix: String = action.substr(2)
+		var jb := InputEventJoypadButton.new()
+		jb.button_index = versus_joy[suffix]
+		jb.device = device
+		InputMap.action_add_event(action, jb)
+		if suffix != "_up":
+			var jm := InputEventJoypadMotion.new()
+			jm.axis = JOY_AXIS_LEFT_X
+			jm.axis_value = -1.0 if suffix == "_left" else 1.0
+			jm.device = device
+			InputMap.action_add_event(action, jm)
 
 # ---------- carros ----------
 
@@ -390,6 +427,43 @@ func start_run() -> void:
 func stop_run() -> void:
 	running = false
 	game_over = false
+	set_lanes(3)
+
+# 3 faixas (normal) ou 5 (versus). Chamar antes de criar a pista.
+func set_lanes(n: int) -> void:
+	LANES = LANES_5 if n == 5 else LANES_3
+	lane_count = LANES.size()
+
+# x das bordas do asfalto: meia faixa para fora da primeira e da última
+func road_edges() -> Vector2:
+	var half: float = (LANES[1] - LANES[0]) * 0.5
+	return Vector2(LANES[0] - half, LANES[-1] + half)
+
+# ---------- versus ----------
+
+func start_versus(car1: String, car2: String) -> void:
+	versus_cars = [car1, car2]
+	versus_wins = [0, 0]
+	versus_round = 1
+
+# Corrida de uma rodada: sem vidas, escudo, moedas nem missões.
+# Cada rodada começa num cenário diferente.
+func start_versus_round() -> void:
+	start_run()
+	lives = 0
+	shield_time = 0.0
+	distance_m = ((versus_round - 1) % biomes.size()) * BIOME_LENGTH + 50.0
+
+# Para a pista sem registrar a corrida (nada de recorde ou moedas).
+func end_versus_round() -> void:
+	game_over = true
+	running = false
+
+func versus_winner() -> int:
+	for i in range(2):
+		if versus_wins[i] >= VERSUS_WINS:
+			return i
+	return -1
 
 func _process(delta: float) -> void:
 	if not running or game_over:
@@ -593,19 +667,25 @@ func turn_standings() -> Array:
 # ---------- IA simples de desvio (menu e piloto automático) ----------
 
 func ai_pick_lane(current_lane: int, car_y: float) -> int:
-	var clear := [9999.0, 9999.0, 9999.0]
+	var clear := []
+	clear.resize(lane_count)
+	clear.fill(9999.0)
 	for t in get_tree().get_nodes_in_group("traffic"):
 		var dy: float = car_y - t.position.y
 		var half: float = t.length * 0.5
 		if dy > -half - 50.0 and dy < 520.0:
-			for l in range(3):
+			for l in range(lane_count):
 				if t.occupies_lane(l):
 					clear[l] = min(clear[l], dy - half)
 	if clear[current_lane] > 300.0:
 		return current_lane
 	var best := current_lane
-	for l in range(3):
-		if abs(l - current_lane) == 2 and clear[1] < 140.0:
+	for l in range(lane_count):
+		# não atravessa uma faixa fechada no caminho
+		var mid: int = int((l + current_lane) / 2.0)
+		if abs(l - current_lane) == 2 and clear[mid] < 140.0:
+			continue
+		if abs(l - current_lane) > 2:
 			continue
 		if clear[l] > clear[best] + 20.0:
 			best = l

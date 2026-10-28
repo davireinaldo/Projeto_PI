@@ -28,6 +28,11 @@ var container: Node2D
 var spawn_coins: bool = true
 var spawn_powerups: bool = true
 var spawn_obstacles: bool = true
+var spawn_racers: bool = true
+var spawn_work_zones: bool = true
+# faixas que nunca ficam fechadas na mesma altura (no versus, 1 por jogador)
+var min_free_lanes: int = 1
+var traffic_rate: float = 1.0 # mais que 1 = carros saem mais seguido
 
 var _traffic_t: float = 1.2
 var _coin_t: float = 1.5
@@ -63,7 +68,7 @@ func _process(delta: float) -> void:
 	_traffic_t -= delta
 	if _traffic_t <= 0.0:
 		if _spawn_traffic(f):
-			_traffic_t = lerp(1.1, 0.48, f) * randf_range(0.85, 1.15)
+			_traffic_t = lerp(1.1, 0.48, f) * randf_range(0.85, 1.15) / traffic_rate
 		else:
 			_traffic_t = 0.15
 
@@ -100,7 +105,7 @@ func _process(delta: float) -> void:
 				if not in_work:
 					spawn_racer(_racer_warning_lane)
 				_racer_warning_lane = -1
-		elif not in_work:
+		elif not in_work and spawn_racers:
 			_racer_t -= delta
 			if _racer_t <= 0.0 and GameManager.distance_m > 300.0:
 				_racer_t = randf_range(18.0, 30.0)
@@ -117,7 +122,7 @@ func _process(delta: float) -> void:
 				work_zone_active = false
 				work_zone_lane = -1
 				work_zone_ended.emit()
-		else:
+		elif spawn_work_zones:
 			_work_zone_interval -= delta
 			if _work_zone_interval <= 0.0 and GameManager.distance_m > 400.0:
 				_start_work_zone()
@@ -175,7 +180,7 @@ func _can_spawn(l: int, _f: float, spawn_y: float = -90.0, own_spd: float = 85.0
 		if b.kind == "racer" and b.position.y > -100.0 and b.position.y < 740.0:
 			if b.occupies_lane(l):
 				return false
-			for k in [0, 1, 2]:
+			for k in range(GameManager.lane_count):
 				if b.occupies_lane(k):
 					reserved_lanes[k] = true
 		elif "is_work_zone" in b and b.is_work_zone and b.position.y < 640.0:
@@ -224,11 +229,11 @@ func _can_spawn(l: int, _f: float, spawn_y: float = -90.0, own_spd: float = 85.0
 			var b_len: float = b.length if "length" in b else 50.0
 			var safe_gap: float = (new_len + b_len) * 0.5 + 165.0
 			if abs(by - ny) < safe_gap:
-				for k in [0, 1, 2]:
+				for k in range(GameManager.lane_count):
 					if b.occupies_lane(k):
 						blocked[k] = true
 
-		if blocked.size() >= 3:
+		if blocked.size() > GameManager.lane_count - min_free_lanes:
 			return false
 		t_sim += 0.12
 
@@ -272,7 +277,7 @@ func _spawn_traffic(f: float) -> bool:
 			own_spd = randf_range(20.0, 50.0)
 			veh_len = 136.0
 
-	var lanes := [0, 1, 2]
+	var lanes := range(GameManager.lane_count)
 	lanes.shuffle()
 	# Prioriza faixas diferentes da última usada para forçar a alternância entre faixas
 	if _last_traffic_lane in lanes:
@@ -354,7 +359,7 @@ func spawn_racer(l: int) -> void:
 	container.add_child(t)
 
 func _spawn_coin_line() -> void:
-	var lanes := [0, 1, 2]
+	var lanes := range(GameManager.lane_count)
 	lanes.shuffle()
 	for l in lanes:
 		if (not work_zone_active or l != work_zone_lane) and lane_clear_top(l, 260.0):
@@ -372,7 +377,7 @@ func _spawn_obstacle() -> bool:
 		return true
 	var kind: String = kinds[randi() % kinds.size()]
 	var obs_len: float = Obstacle.SIZES[kind].y
-	var lanes := [0, 1, 2]
+	var lanes := range(GameManager.lane_count)
 	lanes.shuffle()
 	for l in lanes:
 		if not lane_clear_top(l, 220.0) or not _items_clear_top(l, 120.0):
@@ -419,7 +424,7 @@ func _wont_catch_up(l: int) -> bool:
 	return true
 
 func _spawn_powerup() -> void:
-	var lanes := [0, 1, 2]
+	var lanes := range(GameManager.lane_count)
 	lanes.shuffle()
 	for l in lanes:
 		if (not work_zone_active or l != work_zone_lane) and lane_clear_top(l, 200.0):

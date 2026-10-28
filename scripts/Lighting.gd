@@ -63,6 +63,7 @@ const TAILLIGHT := Color(1.0, 0.12, 0.1)
 
 var world: Node2D # de onde vem a hora do dia e os postes
 var hero: Node2D # carro com o farol grande (jogador ou o carro do menu)
+var hero2: Node2D # o segundo jogador do versus
 var _dark: ColorRect
 var _glow: ColorRect
 var _la := PackedVector4Array()
@@ -112,10 +113,11 @@ var _n: int = 0
 
 func _gather() -> int:
 	_n = 0
-	if hero and hero.visible:
-		var hp := hero.global_position
-		_add(hp + Vector2(0, -28), 330.0, 1, HEADLIGHT, 1.15)
-		_add(hp + Vector2(0, 34), 30.0, 0, TAILLIGHT, 0.6)
+	for h in [hero, hero2]:
+		if is_instance_valid(h) and h.visible:
+			var hp: Vector2 = h.global_position
+			_add(hp + Vector2(0, -28), 330.0, 1, HEADLIGHT, 1.15)
+			_add(hp + Vector2(0, 34), 30.0, 0, TAILLIGHT, 0.6)
 	for p in get_tree().get_nodes_in_group("powerups"):
 		_add(p.global_position, 60.0, 0, p.color(), 0.7)
 	for t in get_tree().get_nodes_in_group("traffic"):

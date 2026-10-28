@@ -4,6 +4,9 @@ extends Area2D
 # para o lado ou tocar na metade esquerda/direita da tela), com transição
 # suave e inclinação.
 # Os atributos vêm do carro selecionado na garagem.
+# No versus (pid 1 ou 2) cada um tem os próprios controles e o Versus.gd
+# cuida do toque na tela e decide cada troca de faixa (on_steer), que é
+# onde entra o empurrão.
 
 const CarVisual := preload("res://scripts/CarVisual.gd")
 const PlayerFX := preload("res://scripts/PlayerFX.gd")
@@ -24,6 +27,9 @@ const JUMP_DURATION := 0.85
 const JUMP_COOLDOWN := 15.0
 
 var lane: int = 1
+var pid: int = 0 # 0 = corrida normal; 1 ou 2 = jogador do versus
+var car_id: String = "" # carro do versus ("" = o selecionado na garagem)
+var on_steer: Callable # versus: (player, dir) -> true se já cuidou da troca
 var lane_speed: float = 10.0
 var car: Dictionary
 var visual: Node2D
@@ -43,10 +49,11 @@ var _t: float = 0.0
 
 func _ready() -> void:
 	add_to_group("player")
-	car = GameManager.selected_car()
+	car = GameManager.car_by_id(car_id) if car_id != "" else GameManager.selected_car()
 	lane_speed = car["lane_speed"]
-	has_jump = bool(car.get("has_jump", false))
-	has_turbo = bool(car.get("turbo", false))
+	# no versus os poderes ficam de fora (o nitro e o rádio mexem na pista toda)
+	has_jump = bool(car.get("has_jump", false)) and pid == 0
+	has_turbo = bool(car.get("turbo", false)) and pid == 0
 	position = Vector2(GameManager.LANES[lane], GameManager.PLAYER_Y)
 
 	var trail := PlayerFX.new()
@@ -91,7 +98,12 @@ func _process(delta: float) -> void:
 				FX.burst(parent, global_position + Vector2(randf_range(-8, 8), 16), Color(0.3, 0.85, 1.0, 0.7), 8, 130.0, 0.35, 4.5, 40.0)
 		if jump_timer <= 0.0:
 			_land_jump()
-	if GameManager.debug_autopilot:
+	if pid > 0:
+		if Input.is_action_just_pressed("p%d_left" % pid):
+			_steer(-1)
+		if Input.is_action_just_pressed("p%d_right" % pid):
+			_steer(1)
+	elif GameManager.debug_autopilot:
 		lane = GameManager.ai_pick_lane(lane, position.y)
 	else:
 		if Input.is_action_just_pressed("steer_left"):
@@ -115,7 +127,8 @@ func _process(delta: float) -> void:
 		wobble = sin(_t * 14.0) * 0.12 * clamp(ice_time, 0.0, 1.0)
 	position.x += diff * clamp(delta * ls, 0.0, 1.0)
 	rotation = lerp(rotation, clamp(diff * 0.012, -0.25, 0.25) + wobble, 0.25)
-	GameManager.player_pos = position
+	if pid <= 1:
+		GameManager.player_pos = position
 
 	history.push_front(position.x)
 	if history.size() > 8:
@@ -125,7 +138,9 @@ func _process(delta: float) -> void:
 	visual.modulate.a = 0.35 if GameManager.grace_time > 0.0 and fmod(_t, 0.16) < 0.08 else 1.0
 
 func _steer(dir: int) -> void:
-	var new_lane: int = clamp(lane + dir, 0, 2)
+	if on_steer.is_valid() and on_steer.call(self, dir):
+		return
+	var new_lane: int = clamp(lane + dir, 0, GameManager.lane_count - 1)
 	if new_lane != lane:
 		AudioManager.play("whoosh", -4.0, 0.12)
 		steered.emit()
@@ -146,6 +161,8 @@ func occupies_lane(l: int) -> bool:
 # Um toque rápido, sem deslizar, vale o lado da tela.
 # O toque do celular chega aqui como mouse (emulação padrão do Godot).
 func _unhandled_input(event: InputEvent) -> void:
+	if pid > 0:
+		return # no versus o toque é do Versus.gd (metade da tela de cada um)
 	if GameManager.game_over or get_tree().paused:
 		_touch_start = null
 		return

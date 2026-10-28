@@ -2,6 +2,7 @@ extends Node2D
 
 # Oficina: gastar moedas em melhorias permanentes dos poderes.
 # Cada nível faz o poder durar mais (valores em GameManager.upgrades).
+# Abre pela Garagem (botão OFICINA) e volta para ela.
 
 const World := preload("res://scripts/World.gd")
 const PowerUp := preload("res://scripts/PowerUp.gd")
@@ -34,7 +35,7 @@ func _ready() -> void:
 func _process(delta: float) -> void:
 	_t += delta
 	if Input.is_action_just_pressed("ui_cancel"):
-		UI.go(get_tree(), "res://scenes/Menu.tscn")
+		UI.go(get_tree(), "res://scenes/Garage.tscn")
 
 func _row_top(i: int) -> float:
 	return ROW_Y + i * (ROW_H + ROW_GAP)
@@ -66,7 +67,7 @@ func _build_ui() -> void:
 	root.add_child(DrawHook.new(_draw_screen))
 
 	msg_label = UI.label(root, "", Vector2(0, 622), 15, Color(1, 0.4, 0.4), 480, HORIZONTAL_ALIGNMENT_CENTER)
-	var back := UI.button(root, "VOLTAR", Rect2(140, 652, 200, 48), func(): UI.go(get_tree(), "res://scenes/Menu.tscn"))
+	var back := UI.button(root, "VOLTAR", Rect2(140, 652, 200, 48), func(): UI.go(get_tree(), "res://scenes/Garage.tscn"))
 	buttons.append(back)
 	UI.chain_vertical(buttons)
 	buttons[0].grab_focus()

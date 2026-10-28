@@ -77,7 +77,7 @@ func _process(delta: float) -> void:
 	_racer_t -= delta
 	if _racer_t <= 0.0:
 		_racer_t = randf_range(2.5, 5.0)
-		var lanes := [0, 1, 2]
+		var lanes := range(GameManager.lane_count)
 		lanes.shuffle()
 		for l in lanes:
 			if l != hero_lane and _bottom_clear(l):
@@ -105,10 +105,9 @@ func _build_ui() -> void:
 	var x := 120.0
 	var w := 240.0
 	var screens := [
-		["POR TURNOS", "res://scenes/Turns.tscn"],
+		["MINIGAMES", "res://scenes/Minigames.tscn"],
 		["MISSÕES", "res://scenes/Missions.tscn"],
 		["GARAGEM", "res://scenes/Garage.tscn"],
-		["OFICINA", "res://scenes/Upgrades.tscn"],
 		["RANKING", "res://scenes/Ranking.tscn"],
 		["CONQUISTAS", "res://scenes/Achievements.tscn"],
 		["ESTATÍSTICAS", "res://scenes/Stats.tscn"],

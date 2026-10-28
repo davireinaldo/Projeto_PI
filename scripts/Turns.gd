@@ -47,8 +47,10 @@ func _process(_delta: float) -> void:
 		_to_menu()
 
 func _to_menu() -> void:
+	# da tela de nomes volta para os minigames; de uma partida, para o menu
+	var scene := "res://scenes/Menu.tscn" if GameManager.turn_mode else "res://scenes/Minigames.tscn"
 	GameManager.end_turns()
-	UI.go(get_tree(), "res://scenes/Menu.tscn")
+	UI.go(get_tree(), scene)
 
 func _new_root(title: String) -> void:
 	root = UI.root(self)

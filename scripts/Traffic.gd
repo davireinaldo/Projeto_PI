@@ -170,7 +170,7 @@ func _keep_distance(rel: float) -> float:
 			if _state == 0 and rel > o.rel_speed - 15.0:
 				var options: Array = []
 				for l in [lane - 1, lane + 1]:
-					if l >= 0 and l <= 2 and _lane_free(l, 75.0):
+					if l >= 0 and l < GameManager.lane_count and _lane_free(l, 75.0):
 						options.append(l)
 				if not options.is_empty():
 					_start_change(options[randi() % options.size()], true)
@@ -186,7 +186,9 @@ func _lane_free(l: int, margin: float) -> bool:
 				return false
 		if spawner._racer_warning_lane == l:
 			return false
-	var other_lane: int = 3 - lane - l
+	var min_free: int = spawner.min_free_lanes if is_instance_valid(spawner) else 1
+	# faixas fechadas na altura deste carro durante a troca (ele ocupa as duas)
+	var blocked := {lane: true, l: true}
 	for group in ["traffic", "obstacles"]:
 		for o in get_tree().get_nodes_in_group(group):
 			if o == self:
@@ -197,10 +199,13 @@ func _lane_free(l: int, margin: float) -> bool:
 				return false
 			if o.occupies_lane(l) and abs(o.position.y - position.y) < (length + o_len) * 0.5 + margin:
 				return false
-			# Garante que a troca de faixa da IA nunca feche a 3ª faixa na mesma linha horizontal
-			if kind != "racer" and other_lane >= 0 and other_lane <= 2 and o.occupies_lane(other_lane):
-				if abs(o.position.y - position.y) < (length + o_len) * 0.5 + 175.0:
-					return false
+			# Garante que a troca de faixa da IA nunca feche as faixas livres na mesma linha horizontal
+			if kind != "racer" and abs(o.position.y - position.y) < (length + o_len) * 0.5 + 175.0:
+				for k in range(GameManager.lane_count):
+					if o.occupies_lane(k):
+						blocked[k] = true
+	if kind != "racer" and blocked.size() > GameManager.lane_count - min_free:
+		return false
 	return true
 
 func _start_change(l: int, with_signal: bool) -> void:
@@ -217,7 +222,7 @@ func _lane_logic(delta: float) -> void:
 			if changer and kind == "car" and position.y > _change_at_y:
 				var options: Array = []
 				for l in [lane - 1, lane + 1]:
-					if l >= 0 and l <= 2 and _lane_free(l, 90.0):
+					if l >= 0 and l < GameManager.lane_count and _lane_free(l, 90.0):
 						options.append(l)
 				if options.is_empty():
 					_state = 3
@@ -252,7 +257,7 @@ func _racer_logic() -> float:
 		var need: float = (length + o_len) * 0.5
 		if gap > 0.0 and gap < need + 160.0:
 			for l in [lane - 1, lane + 1]:
-				if l >= 0 and l <= 2 and _lane_free(l, 70.0):
+				if l >= 0 and l < GameManager.lane_count and _lane_free(l, 70.0):
 					_start_change(l, false)
 					return rel
 			# Se estiver atrás do jogador e não puder desviar, freia imediatamente
