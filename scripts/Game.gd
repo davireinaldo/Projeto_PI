@@ -9,12 +9,12 @@ const Player := preload("res://scripts/Player.gd")
 const Spawner := preload("res://scripts/Spawner.gd")
 const Weather := preload("res://scripts/Weather.gd")
 const Lighting := preload("res://scripts/Lighting.gd")
-const Skids := preload("res://scripts/Skids.gd")
 const PowerUp := preload("res://scripts/PowerUp.gd")
 const Missions := preload("res://scripts/Missions.gd")
 const FX := preload("res://scripts/FX.gd")
 const UI := preload("res://scripts/UIKit.gd")
 const DrawHook := preload("res://scripts/DrawHook.gd")
+const Achievements := preload("res://scripts/Achievements.gd")
 
 # tempo até um veículo na sua faixa bater: abaixo disso, desviar é "raspão"
 const NEAR_MISS_TIME := 0.5
@@ -35,7 +35,6 @@ var player: Area2D
 var spawner: Node
 var weather: Node2D
 var lighting: Node2D
-var skids: Node2D # marcas de pneu (entre a pista e os carros)
 var camera: Camera2D
 var hud: Control
 var overlay: Control
@@ -45,6 +44,8 @@ var dist_label: Label
 var score_label: Label
 var coin_label: Label
 var combo_label: Label
+var jump_btn: Button
+var turbo_btn: Button
 var pause_layer: Control
 var _shake: float = 0.0
 var _crash_pos: Vector2
@@ -72,28 +73,26 @@ func _ready() -> void:
 	add_child(world)
 	world.biome_changed.connect(_on_biome_changed)
 
-	skids = Skids.new()
-	skids.process_mode = Node.PROCESS_MODE_PAUSABLE
-	add_child(skids)
-
 	entities = Node2D.new()
 	entities.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(entities)
 
 	player = Player.new()
 	player.process_mode = Node.PROCESS_MODE_PAUSABLE
-	player.skids = skids
 	add_child(player)
 	player.crashed.connect(_on_crash)
 	player.coin_picked.connect(_on_coin)
 	player.power_picked.connect(_on_power)
 	player.hazard_hit.connect(_on_hazard)
 	player.steered.connect(_on_steered)
+	player.turbo_started.connect(_on_turbo_started)
 
 	spawner = Spawner.new()
 	spawner.container = entities
 	spawner.process_mode = Node.PROCESS_MODE_PAUSABLE
 	add_child(spawner)
+	spawner.racer_warning.connect(_on_racer_warning)
+	spawner.work_zone_started.connect(_on_work_zone_started)
 
 	weather = Weather.new()
 	weather.world = world
@@ -124,7 +123,7 @@ func _ready() -> void:
 	if int(SaveManager.data["runs"]) == 0 and not SaveManager.data["tutorial_done"] 			and not GameManager.turn_mode and not GameManager.debug_autopilot:
 		spawner.set_process(false) # sem tráfego até aprender a trocar de faixa
 		_tutorial_next()
-	AudioManager.play_music("race")
+	AudioManager.play_race_music()
 	AudioManager.engine_start()
 
 func _process(delta: float) -> void:
@@ -142,8 +141,25 @@ func _process(delta: float) -> void:
 		if _mission_check <= 0.0:
 			_mission_check = 0.3
 			_check_missions()
+	if player.car.get("radio", false):
+		if (Input.is_action_just_pressed("gol_radio") or Input.is_action_just_pressed("radio_toggle")) and not get_tree().paused:
+			_next_gol_track()
+	elif Input.is_action_just_pressed("radio_toggle") and not get_tree().paused:
+		var st_name := AudioManager.next_radio()
+		FX.float_text(hud, Vector2(240, 180), "📻 RÁDIO: %s" % st_name, UI.ACCENT, 18)
 	if Input.is_action_just_pressed("ui_cancel") and not GameManager.game_over and not SaveManager.confirming:
 		_toggle_pause()
+
+func _on_turbo_started() -> void:
+	shake(8.0)
+	flash(Color(1, 0.6, 0.15), 0.4, 0.4)
+	FX.float_text(hud, Vector2(240, 220), "NITRO!", Color(1, 0.6, 0.15), 30)
+
+# Poder do Gol do Narcelio: troca a música do paredão.
+func _next_gol_track() -> void:
+	var song := AudioManager.next_gol_track()
+	FX.float_text(hud, Vector2(240, 180), "📻 PAREDÃO: %s" % song, UI.GOLD, 18)
+	FX.burst(entities, player.position + Vector2(0, 24), UI.GOLD, 14, 160.0, 0.5, 4.0)
 
 func shake(amount: float) -> void:
 	_shake = max(_shake, amount)
@@ -177,13 +193,15 @@ func _near_miss(t: Node2D) -> void:
 	var is_obstacle: bool = t.is_in_group("obstacles")
 	var pts := GameManager.near_miss(is_obstacle)
 	var combo := GameManager.combo
-	AudioManager.play("near_miss", -3.0, 0.0, min(1.0 + (combo - 1) * 0.07, 1.8))
+	AudioManager.play_doppler("near_miss", min(1.2 + (combo - 1) * 0.07, 1.8), 0.82, 0.35)
 	var side := 1.0 if t.position.x < player.position.x else -1.0
 	var pos: Vector2 = player.position + Vector2(side * 10.0, -50.0)
 	var col := _combo_color(combo)
 	FX.float_text(entities, pos, "RASPÃO! +%d" % pts, col, 20 + min(combo, 6) * 2)
 	FX.burst(entities, Vector2((t.position.x + player.position.x) * 0.5, player.position.y - 10), Color(1, 1, 1), 10, 160.0, 0.3, 2.5)
 	_punch(combo_label, 1.5)
+	if combo >= 10:
+		Achievements.unlock("combo_10", hud)
 	if combo % 5 == 0:
 		flash(col, 0.18, 0.3)
 	if _tutorial_step == 1:
@@ -217,7 +235,6 @@ func _on_crash(t: Area2D) -> void:
 			t.queue_free()
 			shake(8.0)
 		"shield":
-			_hit_fx(t)
 			AudioManager.play("shield_block")
 			AudioManager.play("crash", -10.0)
 			_smash_fx(t)
@@ -227,7 +244,6 @@ func _on_crash(t: Area2D) -> void:
 			shake(9.0)
 			flash(Color(0.4, 0.95, 1.0), 0.3)
 		"life":
-			_hit_fx(t)
 			AudioManager.play("crash", -3.0)
 			AudioManager.play("life_lost")
 			_smash_fx(t)
@@ -235,11 +251,6 @@ func _on_crash(t: Area2D) -> void:
 			t.queue_free()
 			shake(15.0)
 			flash(Color(1, 0.2, 0.2), 0.45)
-
-# lataria do jogador pisca e saem faíscas no ponto do contato
-func _hit_fx(t: Area2D) -> void:
-	player.visual.hit()
-	FX.sparks(entities, (t.global_position + player.position) * 0.5)
 
 # veículo explode; obstáculo voa em pedaços da cor dele
 func _smash_fx(t: Area2D) -> void:
@@ -251,7 +262,7 @@ func _smash_fx(t: Area2D) -> void:
 
 # buraco, duna, poça e gelo (não batem, mas atrapalham)
 func _on_hazard(o: Area2D) -> void:
-	var protected := GameManager.shield_time > 0.0 or GameManager.nitro_time > 0.0
+	var protected: bool = GameManager.shield_time > 0.0 or GameManager.nitro_time > 0.0
 	var pos: Vector2 = player.position
 	match o.kind:
 		"bueiro", "duna":
@@ -332,12 +343,34 @@ func _on_shield_ended(_broken: bool) -> void:
 func _on_nitro_ended() -> void:
 	FX.burst(entities, player.position + Vector2(0, 30), Color(1, 0.5, 0.15), 24, 200.0, 0.5, 4.0)
 
+func _on_racer_warning(l: int) -> void:
+	AudioManager.play("whoosh", 1.0, 0.05)
+	var warn_pos := Vector2(GameManager.LANES[l], 670.0)
+	var warn_box := UI.panel(hud, Rect2(warn_pos.x - 52, warn_pos.y - 18, 104, 34), Color(0.85, 0.1, 0.15, 0.92), UI.GOLD)
+	UI.label(warn_box, "▲ RIVAL ▲", Vector2(0, 7), 13, UI.GOLD, 104, HORIZONTAL_ALIGNMENT_CENTER)
+	var tw := create_tween().set_loops(4)
+	tw.tween_property(warn_box, "modulate:a", 0.35, 0.18)
+	tw.tween_property(warn_box, "modulate:a", 1.0, 0.18)
+	get_tree().create_timer(1.5, false).timeout.connect(func():
+		if is_instance_valid(warn_box):
+			warn_box.queue_free())
+
+func _on_work_zone_started(l: int) -> void:
+	AudioManager.play("biome", -2.0, 0.0)
+	var side_text := "FAIXA ESQUERDA" if l == 0 else "FAIXA DIREITA"
+	_show_text("OBRAS NA PISTA (%s FECHADA)" % side_text, Color(1.0, 0.65, 0.15))
+
 func _on_storm_started() -> void:
 	AudioManager.play("storm", 0.0, 0.0)
 	_show_text("TEMPESTADE DE AREIA!", Color(1, 0.8, 0.5))
 
 func _on_storm_survived() -> void:
 	GameManager.run_stats["storms"] += 1
+	var storms_total := int(SaveManager.data.get("storms_survived", 0)) + 1
+	SaveManager.data["storms_survived"] = storms_total
+	SaveManager.save()
+	if storms_total >= 3:
+		Achievements.unlock("storm_survivor", hud)
 	FX.float_text(entities, Vector2(240, 300), "PASSOU A TEMPESTADE!", Color(1, 0.85, 0.55), 22)
 
 func _on_game_over() -> void:
@@ -497,6 +530,18 @@ func _build_hud() -> void:
 	banner.add_theme_constant_override("outline_size", 10)
 	banner.modulate.a = 0.0
 
+	if player.has_jump:
+		jump_btn = UI.button(hud, "JUMP", Rect2(356, 638, 110, 46), func(): player.try_jump(), 14)
+		jump_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+	if player.has_turbo:
+		turbo_btn = UI.button(hud, "TURBO!", Rect2(356, 638, 110, 46), func(): player.try_turbo(), 14)
+		turbo_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+		turbo_btn.focus_mode = Control.FOCUS_NONE
+	if player.car.get("radio", false):
+		var radio_btn := UI.button(hud, "RÁDIO", Rect2(356, 638, 110, 46), _next_gol_track, 14)
+		radio_btn.mouse_filter = Control.MOUSE_FILTER_STOP
+		radio_btn.focus_mode = Control.FOCUS_NONE
+
 # textos do HUD + "pulinho" quando os números mudam
 func _update_hud() -> void:
 	var km := (GameManager.distance_m - GameManager.debug_start_m) / 1000.0
@@ -524,6 +569,22 @@ func _update_hud() -> void:
 	if combo >= 1:
 		combo_label.text = "COMBO x%d" % combo
 		combo_label.add_theme_color_override("font_color", _combo_color(combo))
+
+	if is_instance_valid(jump_btn) and is_instance_valid(player):
+		if player.jump_cooldown > 0.0:
+			jump_btn.text = "JUMP %.1fs" % player.jump_cooldown
+			jump_btn.disabled = true
+		else:
+			jump_btn.text = "JUMP!"
+			jump_btn.disabled = false
+
+	if is_instance_valid(turbo_btn) and is_instance_valid(player):
+		if player.turbo_cooldown > 0.0:
+			turbo_btn.text = "NITRO %.1fs" % player.turbo_cooldown
+			turbo_btn.disabled = true
+		else:
+			turbo_btn.text = "NITRO!"
+			turbo_btn.disabled = false
 
 func _punch(l: Label, amount: float) -> void:
 	l.pivot_offset = l.size * 0.5
@@ -685,6 +746,9 @@ func _resume() -> void:
 # ---------- game over ----------
 
 func _build_game_over() -> void:
+	if float(GameManager.run_stats.get("clean_km", 0.0)) >= 3.0:
+		Achievements.unlock("clean_3km", hud)
+	Achievements.check_all(hud)
 	var s: Dictionary = GameManager.last_summary
 	var root := UI.root(self, 20)
 	var dim := ColorRect.new()

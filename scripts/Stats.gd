@@ -50,7 +50,7 @@ func _ready() -> void:
 		max_km = max(max_km, SaveManager.car_km(c["id"]))
 	for i in range(GameManager.cars.size()):
 		var c: Dictionary = GameManager.cars[i]
-		var y := 342.0 + i * 36.0
+		var y := 342.0 + i * 27.0
 		var owned := SaveManager.is_owned(c["id"])
 		var icon := CarVisual.new()
 		Paints.apply(icon, c)
@@ -66,7 +66,7 @@ func _ready() -> void:
 		for i in range(GameManager.cars.size()):
 			var c: Dictionary = GameManager.cars[i]
 			var col: Color = c["accent"] if c["model"] == "legend" else c["color"]
-			UI.draw_bar(ci, Rect2(72, 342.0 + i * 36.0 + 22, 378, 5), SaveManager.car_km(c["id"]) / max_km, col.lerp(Color.WHITE, 0.25))
+			UI.draw_bar(ci, Rect2(72, 342.0 + i * 27.0 + 22, 378, 5), SaveManager.car_km(c["id"]) / max_km, col.lerp(Color.WHITE, 0.25))
 	var hook := DrawHook.new(bars)
 	hook.auto = false
 	root.add_child(hook)

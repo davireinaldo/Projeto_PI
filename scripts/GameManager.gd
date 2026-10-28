@@ -13,29 +13,41 @@ const UI := preload("res://scripts/UIKit.gd")
 # coin_mult    -> multiplicador de moedas
 # score_mult   -> multiplicador de pontos
 # magnet       -> raio (px) do ímã de moedas (0 = sem ímã)
+# sprite       -> desenho em assets/images/cars/sprites/ (ver CarVisual.gd)
+# radio        -> rádio próprio: SHIFT direito troca a música (AudioManager.GOL_RADIO)
+# turbo        -> poder de nitro (o mesmo do item), um a cada TURBO_EVERY s
 var cars: Array = [
-	{"id": "equilibrado", "name": "Equilibrado", "model": "texture", "color": Color(0.2, 0.5, 1.0), "accent": Color(0.9, 0.95, 1.0),
+	{"id": "equilibrado", "sprite": "equilibrado", "name": "Equilibrado", "model": "texture", "color": Color(0.2, 0.5, 1.0), "accent": Color(0.9, 0.95, 1.0),
 	 "price": 0, "desc": "Sem vantagem nem desvantagem.\nO clássico, direto e confiável.",
 	 "lane_speed": 10.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.0, "score_mult": 1.0, "magnet": 0.0},
-	{"id": "turbo", "name": "Turbo", "model": "sport", "color": Color(0.9, 0.18, 0.2), "accent": Color(1, 1, 1),
+	{"id": "turbo", "sprite": "turbo", "name": "Turbo", "model": "sport", "color": Color(0.9, 0.18, 0.2), "accent": Color(1, 1, 1),
 	 "price": 0, "desc": "Troca de faixa mais rápido.\nBom pra desviar de última hora.",
 	 "lane_speed": 15.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.0, "score_mult": 1.0, "magnet": 0.0},
-	{"id": "blindado", "name": "Blindado", "model": "armored", "color": Color(0.25, 0.6, 0.32), "accent": Color(0.75, 0.8, 0.75),
+	{"id": "blindado", "sprite": "blindado", "name": "Blindado", "model": "armored", "color": Color(0.25, 0.6, 0.32), "accent": Color(0.75, 0.8, 0.75),
 	 "price": 0, "desc": "Começa cada corrida com\n3 segundos de escudo grátis.",
 	 "lane_speed": 9.0, "start_shield": 3.0, "lives": 0, "coin_mult": 1.0, "score_mult": 1.0, "magnet": 0.0},
-	{"id": "pickup", "name": "Pickup", "model": "pickup", "color": Color(0.95, 0.55, 0.12), "accent": Color(0.2, 0.2, 0.22),
+	{"id": "pickup", "sprite": "pickup", "name": "Pickup", "model": "pickup", "color": Color(0.95, 0.55, 0.12), "accent": Color(0.2, 0.2, 0.22),
 	 "price": 400, "desc": "Pesada, mas resistente.\nAguenta uma batida extra.",
 	 "lane_speed": 9.0, "start_shield": 0.0, "lives": 1, "coin_mult": 1.0, "score_mult": 1.0, "magnet": 0.0},
-	{"id": "muscle", "name": "Muscle", "model": "muscle", "color": Color(0.13, 0.13, 0.16), "accent": Color(1.0, 0.8, 0.1),
+	{"id": "muscle", "sprite": "muscle", "name": "Muscle", "model": "muscle", "color": Color(0.13, 0.13, 0.16), "accent": Color(1.0, 0.8, 0.1),
 	 "price": 900, "desc": "Motor V8 que rende.\nGanha 50% mais moedas.",
 	 "lane_speed": 11.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.5, "score_mult": 1.0, "magnet": 0.0},
-	{"id": "esportivo", "name": "Esportivo", "model": "coupe", "color": Color(1.0, 0.82, 0.1), "accent": Color(0.1, 0.1, 0.12),
+	{"id": "uno", "sprite": "uno", "name": "Fiat Uno", "model": "uno", "color": Color(0.95, 0.95, 0.94), "accent": Color(0.9, 0.5, 0.15),
+	 "price": 1200, "desc": "Uno com escada é imbatível!\nPoder de NITRO a cada 20s.",
+	 "lane_speed": 11.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.1, "score_mult": 1.5, "magnet": 0.0, "turbo": true},
+	{"id": "esportivo", "sprite": "esportivo", "name": "Esportivo", "model": "coupe", "color": Color(1.0, 0.82, 0.1), "accent": Color(0.1, 0.1, 0.12),
 	 "price": 1800, "desc": "Ímã de moedas e +25% de pontos.\nRápido e elegante.",
 	 "lane_speed": 14.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.0, "score_mult": 1.25, "magnet": 110.0},
-	{"id": "f1", "name": "F1", "model": "f1", "color": Color(0.85, 0.08, 0.35), "accent": Color(0.15, 0.95, 1.0),
+	{"id": "gol", "sprite": "gol", "name": "Gol do Narcelio", "model": "gol", "color": Color(0.95, 0.95, 0.95), "accent": Color(0.15, 0.15, 0.18),
+	 "price": 2500, "desc": "Paredão no porta-malas!\nSHIFT direito troca a música.",
+	 "lane_speed": 12.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.3, "score_mult": 1.2, "magnet": 0.0, "radio": true},
+	{"id": "f1", "sprite": "f1", "name": "F1", "model": "f1", "color": Color(0.85, 0.08, 0.35), "accent": Color(0.15, 0.95, 1.0),
 	 "price": 3500, "desc": "Agilidade máxima.\n+50% de pontos.",
 	 "lane_speed": 19.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.0, "score_mult": 1.5, "magnet": 0.0},
-	{"id": "zero", "name": "ZERO", "model": "legend", "color": Color(0.07, 0.09, 0.14), "accent": Color(0.1, 1.0, 0.9),
+	{"id": "roadster", "sprite": "roadster", "name": "Roadster", "model": "roadster", "color": Color(0.94, 0.95, 0.97), "accent": Color(0.85, 0.68, 0.38),
+	 "price": 6000, "desc": "Inspirado no novo Roadster.\nPulo SpaceX com timer de 15s.",
+	 "lane_speed": 17.0, "start_shield": 0.0, "lives": 0, "coin_mult": 1.25, "score_mult": 1.4, "magnet": 0.0, "has_jump": true},
+	{"id": "zero", "sprite": "zero", "name": "ZERO", "model": "legend", "color": Color(0.07, 0.09, 0.14), "accent": Color(0.1, 1.0, 0.9),
 	 "price": 10000, "desc": "O lendário. Escudo, vida extra,\nímã e moedas em dobro.",
 	 "lane_speed": 16.0, "start_shield": 4.0, "lives": 1, "coin_mult": 2.0, "score_mult": 1.5, "magnet": 150.0},
 ]
@@ -134,6 +146,8 @@ var slow_factor: float = 1.0
 var nitro_time: float = 0.0 # nitro: mais rápido e atravessa o tráfego
 var nitro_total: float = 1.0
 var nitro_factor: float = 1.0
+# nitro do Fiat Uno: pode usar de novo TURBO_EVERY s depois de ligar
+const TURBO_EVERY := 20.0
 var magnet_time: float = 0.0 # ímã temporário (para qualquer carro)
 var magnet_total: float = 1.0
 var x2_time: float = 0.0 # moedas valem 2
@@ -189,14 +203,49 @@ func _input(event: InputEvent) -> void:
 		UI.toggle_fullscreen()
 
 func _setup_input() -> void:
-	var extra := {"steer_left": [KEY_LEFT, KEY_A], "steer_right": [KEY_RIGHT, KEY_D]}
-	for action in extra.keys():
+	var key_actions := {
+		"steer_left": [KEY_LEFT, KEY_A],
+		"steer_right": [KEY_RIGHT, KEY_D],
+		"horn": [KEY_SPACE, KEY_H],
+		"jump": [KEY_UP, KEY_W],
+		"radio_toggle": [KEY_R],
+		"gol_radio": []
+	}
+	var joy_buttons := {
+		"steer_left": [JOY_BUTTON_DPAD_LEFT],
+		"steer_right": [JOY_BUTTON_DPAD_RIGHT],
+		"horn": [JOY_BUTTON_RIGHT_SHOULDER, JOY_BUTTON_LEFT_SHOULDER, JOY_BUTTON_B],
+		"jump": [JOY_BUTTON_A, JOY_BUTTON_Y],
+		"radio_toggle": [JOY_BUTTON_X]
+	}
+	for action in key_actions.keys():
 		if not InputMap.has_action(action):
 			InputMap.add_action(action)
-		for key in extra[action]:
+		for key in key_actions[action]:
 			var ev := InputEventKey.new()
 			ev.physical_keycode = key
 			InputMap.action_add_event(action, ev)
+		if joy_buttons.has(action):
+			for btn in joy_buttons[action]:
+				var jb := InputEventJoypadButton.new()
+				jb.button_index = btn
+				InputMap.action_add_event(action, jb)
+
+	# só o SHIFT da direita (o da esquerda continua livre)
+	var rshift := InputEventKey.new()
+	rshift.physical_keycode = KEY_SHIFT
+	rshift.location = KEY_LOCATION_RIGHT
+	InputMap.action_add_event("gol_radio", rshift)
+
+	var joy_left := InputEventJoypadMotion.new()
+	joy_left.axis = JOY_AXIS_LEFT_X
+	joy_left.axis_value = -1.0
+	InputMap.action_add_event("steer_left", joy_left)
+
+	var joy_right := InputEventJoypadMotion.new()
+	joy_right.axis = JOY_AXIS_LEFT_X
+	joy_right.axis_value = 1.0
+	InputMap.action_add_event("steer_right", joy_right)
 
 # ---------- carros ----------
 
@@ -384,7 +433,7 @@ func _process(delta: float) -> void:
 	x2_time = max(x2_time - delta, 0.0)
 
 func speed_kmh() -> int:
-	return int(speed * 0.36)
+	return roundi(speed * 0.36)
 
 func is_protected() -> bool:
 	return shield_time > 0.0 or grace_time > 0.0 or nitro_time > 0.0

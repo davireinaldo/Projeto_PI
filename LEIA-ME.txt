@@ -9,11 +9,20 @@ COMO ABRIR
 CONTROLES
 ---------
 - Setas ESQUERDA/DIREITA ou A/D: trocar de faixa
+- D-Pad ou Analógico Esquerdo no controle (Gamepad): trocar de faixa
+- ESPAÇO ou H (ou botões L/R no controle): buzinar (efeito sonoro)
+- W ou SETA PARA CIMA (ou Botão A no controle): Pulo SpaceX (carro Roadster)
+- No celular (touch): deslizar o dedo para cima (Swipe Up) ou botão JUMP (carro Roadster)
+- R (ou Botão X no controle): alternar estação de rádio (3 faixas)
+- SHIFT DIREITO (carro Gol do Narcelio): trocar a música do paredão
+  (no celular: botão RÁDIO)
+- SHIFT DIREITO, W ou SETA PARA CIMA (carro Fiat Uno): poder de NITRO,
+  um a cada 20s (no celular: botão NITRO ou deslizar para cima)
 - Deslizar o dedo (ou arrastar o mouse) para o lado: trocar de faixa
 - Toque/clique rápido na metade esquerda/direita da tela: trocar de faixa
 - F11 ou botão TELA CHEIA no menu: tela cheia
 - ESC: pausa (na corrida) / voltar (nas outras telas)
-- Menus: setas + ENTER, ou mouse
+- Menus: setas + ENTER, D-Pad/analógico ou mouse
 
 TELAS
 -----
@@ -39,11 +48,18 @@ Turbo (grátis) ........... troca de faixa rápida
 Blindado (grátis) ........ começa com 3s de escudo
 Pickup (400) ............. aguenta 1 batida extra
 Muscle (900) ............. +50% moedas
+Fiat Uno (1200) .......... poder de NITRO (igual ao item) a cada 20s
 Esportivo (1800) ......... ímã de moedas, +25% pontos
+Gol do Narcelio (2500) ... rádio próprio: SHIFT direito troca a música
+                           (só ele toca as músicas do Natanzinho Lima)
 F1 (3500) ................ agilidade máxima, +50% pontos
+Roadster (6000) .......... SpaceX Jump (1 a cada 15s) pulando tráfego e obstáculos
 ZERO (10000) ............. escudo, vida extra, ímã, moedas x2, +50% pontos
-Os desenhos de cada modelo ficam em assets/images/cars/ (gerados por
-tools/gerar_carros.py) e são montados em scripts/CarVisual.gd.
+Os carros jogáveis usam os desenhos de assets/images/cars/sprites/
+(gerados por tools/importar_sprites.py a partir das imagens originais).
+O tráfego continua com os desenhos de assets/images/cars/ (gerados por
+tools/gerar_carros.py). Tudo é montado em scripts/CarVisual.gd.
+Músicas do Gol: assets/audio/music/gol/ (lista em AudioManager.gd, GOL_RADIO).
 
 MOEDAS
 ------
@@ -173,10 +189,6 @@ assets/fonts ............ fonte Russo One (licença OFL em RussoOne-OFL.txt)
 scripts/Traffic.gd ...... veículos do tráfego
 scripts/Spawner.gd ...... cria tráfego, moedas e poderes
 scripts/Player.gd / PlayerFX.gd .. carro do jogador e efeitos
-scripts/CarVisual.gd .... monta o desenho dos carros (camadas SVG, rodas girando,
-                          suspensão, clarão de batida)
-scripts/CarData.gd ...... rodas e piscas de cada modelo (gerado por tools/gerar_carros.py)
-scripts/Skids.gd ........ marcas de pneu na pista
 scripts/FX.gd, UIKit.gd, DrawHook.gd .. efeitos e interface
 scripts/AudioManager.gd . música, efeitos sonoros e motor
 scripts/Upgrades.gd ..... tela da Oficina

@@ -1,8 +1,8 @@
 extends Node2D
 
 # Efeitos presos ao carro do jogador:
-#   mode "trail"  -> rastro escolhido na Pintura, chamas do nitro, vento em
-#                    alta velocidade e fantasmas da câmera lenta (embaixo do carro)
+#   mode "trail"  -> rastro escolhido na Pintura, chamas do nitro e fantasmas
+#                    da câmera lenta (fica embaixo do carro)
 #   mode "bubble" -> bolha do escudo pulsando (fica em cima do carro)
 
 const Paints := preload("res://scripts/Paints.gd")
@@ -20,7 +20,6 @@ func _draw() -> void:
 	if GameManager.game_over:
 		return
 	if mode == "trail":
-		_draw_wind()
 		_draw_nitro()
 		_draw_trail()
 	else:
@@ -36,17 +35,6 @@ func _draw_nitro() -> void:
 	var k: float = clamp((GameManager.nitro_factor - 1.0) / 0.65, 0.0, 1.0)
 	Paints.draw_ribbon(self, _trail, offs, _t, k)
 	Paints.draw_nitro(self, _trail, offs, _t, k)
-
-# riscos de vento passando rente às laterais (só acima da metade da velocidade)
-func _draw_wind() -> void:
-	var frac: float = (GameManager.speed - 150.0) / maxf(GameManager.max_speed - 150.0, 1.0)
-	var k: float = clamp((frac - 0.5) * 2.0, 0.0, 1.0)
-	if k <= 0.02:
-		return
-	for i in range(4):
-		var x := (24.0 + (i % 2) * 5.0) * (1.0 if i < 2 else -1.0)
-		var y := fmod(_t * 700.0 + i * 47.0, 130.0) - 40.0
-		draw_line(Vector2(x, y), Vector2(x, y + 26.0 + 14.0 * k), Color(1, 1, 1, 0.22 * k), 1.5)
 
 func _draw_trail() -> void:
 	var strength: float = clamp((1.0 - GameManager.slow_factor) * 2.0, 0.0, 1.0)

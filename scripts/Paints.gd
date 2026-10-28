@@ -75,6 +75,7 @@ static func buy(kind: String, car_id: String, d: Dictionary) -> bool:
 
 # Desenha o carro com a pintura que ele está usando.
 static func apply(visual: Node2D, car: Dictionary, paint: Dictionary = {}) -> void:
+	visual.sprite = String(car.get("sprite", ""))
 	visual.setup(car["model"], car["color"], car["accent"])
 	visual.set_paint(paint if not paint.is_empty() else current("paint", car["id"]))
 

@@ -35,39 +35,6 @@ static func explosion(parent: Node, pos: Vector2, big: bool = false) -> void:
 	burst(parent, pos, Color(1, 0.4, 0.05), int(30 * k), 200.0 * k, 0.7, 6.0 * k, 120.0)
 	burst(parent, pos, Color(0.2, 0.2, 0.22, 0.8), int(18 * k), 90.0 * k, 1.1, 9.0 * k, -60.0)
 
-# fumacinha de pneu: poucas bolinhas cinza que descem com a pista e somem
-static func smoke(parent: Node, pos: Vector2, amount: int = 6, road_speed: float = 300.0) -> void:
-	var p := CPUParticles2D.new()
-	p.position = pos
-	p.amount = amount
-	p.lifetime = 0.55
-	p.one_shot = true
-	p.explosiveness = 0.85
-	p.direction = Vector2(0, 1)
-	p.spread = 35.0
-	p.initial_velocity_min = road_speed * 0.25
-	p.initial_velocity_max = road_speed * 0.45
-	p.damping_min = 60.0
-	p.damping_max = 120.0
-	p.scale_amount_min = 3.0
-	p.scale_amount_max = 6.0
-	var curve := Curve.new()
-	curve.add_point(Vector2(0, 0.6))
-	curve.add_point(Vector2(1, 1.6))
-	p.scale_amount_curve = curve
-	var g := Gradient.new()
-	g.set_color(0, Color(0.82, 0.84, 0.88, 0.35))
-	g.set_color(1, Color(0.82, 0.84, 0.88, 0.0))
-	p.color_ramp = g
-	p.z_index = 2
-	parent.add_child(p)
-	p.emitting = true
-	parent.get_tree().create_timer(1.0).timeout.connect(p.queue_free)
-
-# faíscas de raspão: riscos claros e rápidos que caem
-static func sparks(parent: Node, pos: Vector2, amount: int = 14) -> void:
-	burst(parent, pos, Color(1, 0.85, 0.45), amount, 300.0, 0.28, 2.0, 500.0)
-
 static func float_text(parent: Node, pos: Vector2, text: String, color: Color, size: int = 26) -> void:
 	var l := Label.new()
 	l.text = text

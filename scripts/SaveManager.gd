@@ -5,6 +5,7 @@ extends Node
 # moedas, carros comprados, KM global, KM por carro, estatísticas e top 10.
 
 const PATH := "user://zero_impact_save.json"
+const TMP_PATH := "user://zero_impact_save.json.tmp"
 const OLD_HIGHSCORE_PATH := "user://highscore.save"
 const TOP_SIZE := 10
 const UI := preload("res://scripts/UIKit.gd")
@@ -125,30 +126,61 @@ func _defaults() -> Dictionary:
 		"online_sent": 0, # último recorde enviado
 		"online_sent_name": "",
 		"music_on": true,
-		"sfx_on": true
+		"sfx_on": true,
+		"radio_track": 0,
+		"gol_track": 0, # música do rádio do Gol do Narcelio
+		"achievements": []
 	}
 
 func load_data() -> void:
 	data = _defaults()
+	var loaded := false
 	if FileAccess.file_exists(PATH):
 		var f := FileAccess.open(PATH, FileAccess.READ)
-		var parsed: Variant = JSON.parse_string(f.get_as_text())
-		f.close()
-		if parsed is Dictionary:
-			for k in parsed.keys():
-				data[k] = parsed[k]
-	elif FileAccess.file_exists(OLD_HIGHSCORE_PATH):
+		if f:
+			var parsed: Variant = JSON.parse_string(f.get_as_text())
+			f.close()
+			if parsed is Dictionary:
+				for k in parsed.keys():
+					data[k] = parsed[k]
+				loaded = true
+	if not loaded and FileAccess.file_exists(TMP_PATH):
+		var f := FileAccess.open(TMP_PATH, FileAccess.READ)
+		if f:
+			var parsed: Variant = JSON.parse_string(f.get_as_text())
+			f.close()
+			if parsed is Dictionary:
+				for k in parsed.keys():
+					data[k] = parsed[k]
+				loaded = true
+	if not loaded and FileAccess.file_exists(OLD_HIGHSCORE_PATH):
 		# aproveita o recorde da versão antiga (Carro Desviador)
 		var f := FileAccess.open(OLD_HIGHSCORE_PATH, FileAccess.READ)
-		data["best_score"] = int(f.get_float())
-		f.close()
-		save()
+		if f:
+			data["best_score"] = int(f.get_float())
+			f.close()
+			save()
 
 func save() -> void:
-	var f := FileAccess.open(PATH, FileAccess.WRITE)
+	# Salvamento atômico: escreve primeiro em .tmp e depois renomeia para evitar corrupção
+	var f := FileAccess.open(TMP_PATH, FileAccess.WRITE)
 	if f:
 		f.store_string(JSON.stringify(data, "\t"))
+		f.flush()
 		f.close()
+		var dir := DirAccess.open("user://")
+		if dir:
+			var base_name := PATH.get_file()
+			var tmp_name := TMP_PATH.get_file()
+			if dir.file_exists(base_name):
+				dir.remove(base_name)
+			dir.rename(tmp_name, base_name)
+	else:
+		# Fallback direto caso o .tmp falhe
+		var direct := FileAccess.open(PATH, FileAccess.WRITE)
+		if direct:
+			direct.store_string(JSON.stringify(data, "\t"))
+			direct.close()
 
 # ---------- atalhos ----------
 
